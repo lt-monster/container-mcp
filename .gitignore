@@ -1,0 +1,70 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+TestResults/
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+*.trx
+
+# .NET user and generated files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+*.vsp
+*.vspx
+*.psess
+
+# Visual Studio / Rider / VS Code local state
+.vs/
+.idea/
+.vscode/
+*.DotSettings.user
+
+# CodeGraph local index data
+.codegraph/*.db
+.codegraph/*.db-wal
+.codegraph/*.db-shm
+.codegraph/cache/
+.codegraph/*.log
+.codegraph/.dirty
+
+# Logs and diagnostics
+*.log
+logs/
+*.dmp
+*.mdmp
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+~$*
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Publish/package outputs
+publish/
+out/
+dist/
+*.zip
+*.tar
+*.tar.gz
+*.7z

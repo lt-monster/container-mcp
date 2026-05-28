@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>container-mcp</AssemblyName>
+    <RootNamespace>ContainerMcp</RootNamespace>
+    <PublishAot>false</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TrimMode>full</TrimMode>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ContainerMcp.Server.Tests\**\*.cs" />
+    <Content Remove="ContainerMcp.Server.Tests\**\*" />
+    <None Remove="ContainerMcp.Server.Tests\**\*" />
+  </ItemGroup>
+
+</Project>
