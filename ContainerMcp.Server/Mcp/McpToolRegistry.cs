@@ -53,6 +53,7 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
             throw new ContainerMcpException(Models.McpErrorCode.InvalidArgument, $"Unknown tool '{name}'.", StatusCodes.Status400BadRequest);
         }
 
+        McpInputSchemaValidator.Validate(arguments, tool.InputSchema);
         return await tool.Handler(arguments, cancellationToken);
     }
 
