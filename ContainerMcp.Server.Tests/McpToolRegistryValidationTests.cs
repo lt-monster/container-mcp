@@ -11,9 +11,33 @@ namespace ContainerMcp.Server.Tests;
 public sealed class McpToolRegistryValidationTests
 {
     [Theory]
+    [InlineData("image_inspect")]
+    [InlineData("image_tag")]
+    [InlineData("image_prune")]
+    [InlineData("image_build")]
+    [InlineData("image_push")]
+    [InlineData("image_load")]
+    [InlineData("image_save")]
+    public void List_IncludesImageManagementTool(string toolName)
+    {
+        var registry = CreateRegistry();
+
+        var tools = registry.List();
+
+        Assert.Contains(tools, tool => tool!["name"]!.GetValue<string>() == toolName);
+    }
+
+    [Theory]
     [InlineData("image_list", """{"unexpected":true}""", "Unknown argument 'unexpected'.")]
     [InlineData("image_pull", """{}""", "Missing required argument 'image'.")]
     [InlineData("image_remove", """{"imageIdOrName":"nginx","force":"true"}""", "Argument 'force' must be a boolean.")]
+    [InlineData("image_inspect", """{}""", "Missing required argument 'imageIdOrName'.")]
+    [InlineData("image_tag", """{"source":"nginx"}""", "Missing required argument 'repo'.")]
+    [InlineData("image_prune", """{"labels":[1]}""", "Argument 'labels[0]' must be a string.")]
+    [InlineData("image_build", """{"tag":"app:dev"}""", "Missing required argument 'contextTarPath'.")]
+    [InlineData("image_push", """{}""", "Missing required argument 'image'.")]
+    [InlineData("image_load", """{"quiet":"false"}""", "Missing required argument 'tarPath'.")]
+    [InlineData("image_save", """{"image":"nginx"}""", "Missing required argument 'outputPath'.")]
     [InlineData("container_list", """{"engine":"invalid"}""", "Argument 'engine' must be one of: auto, docker, podman.")]
     [InlineData("container_create", """{"image":"nginx","command":{"bad":true}}""", "Argument 'command' does not match any allowed schema.")]
     [InlineData("volume_create", """{"name":"cache","labels":{"ttl":30}}""", "Argument 'labels.ttl' must be a string.")]
