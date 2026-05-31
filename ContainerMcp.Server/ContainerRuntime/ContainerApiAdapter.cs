@@ -144,7 +144,7 @@ internal sealed class ContainerApiAdapter
 
     private async Task<string> GetStringCoreAsync(ResolvedEngine engine, string path, CancellationToken cancellationToken)
     {
-        using var client = _factory.Create(engine.Endpoint);
+        var client = _factory.GetClient(engine.Endpoint);
         using var response = await client.GetAsync(path, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -157,7 +157,7 @@ internal sealed class ContainerApiAdapter
 
     private async Task<byte[]> GetBytesCoreAsync(ResolvedEngine engine, string path, int maxBytes, CancellationToken cancellationToken)
     {
-        using var client = _factory.Create(engine.Endpoint);
+        var client = _factory.GetClient(engine.Endpoint);
         using var response = await client.GetAsync(path, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         var body = await ReadAtMostAsync(stream, maxBytes, cancellationToken);
@@ -171,7 +171,7 @@ internal sealed class ContainerApiAdapter
 
     private async Task<JsonObject> SendJsonMessageStreamCoreAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, int maxEvents, CancellationToken cancellationToken)
     {
-        using var client = _factory.Create(engine.Endpoint);
+        var client = _factory.GetClient(engine.Endpoint);
         using var request = new HttpRequestMessage(method, path);
         if (body is not null)
         {
@@ -191,7 +191,7 @@ internal sealed class ContainerApiAdapter
 
     private async Task<JsonElement> SendCoreAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, CancellationToken cancellationToken)
     {
-        using var client = _factory.Create(engine.Endpoint);
+        var client = _factory.GetClient(engine.Endpoint);
         using var request = new HttpRequestMessage(method, path);
         if (body is not null)
         {

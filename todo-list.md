@@ -14,8 +14,8 @@
 - [ ] **2.2** 在远程 target 有完整设计前，继续只支持 `target=local`。（现在实现）
 - [ ] **2.3** 设计远程 target 支持，包括 resolver、工具 schema、认证和错误处理。（后续实现）
 - [x] **2.4** 实现 `ApiFirst` 行为，或移除当前未使用的配置项。（现在实现）
-- [ ] **2.5** 改进 Docker/Podman endpoint 诊断，让 `docker_diagnose` 不只报告 Docker，也能报告 Podman 和自动探测状态。（现在实现）
-- [ ] **2.6** 按 endpoint 缓存或复用运行时 HTTP handler/client，避免每次 API 调用都创建新 client。（现在实现）
+- [ ] **2.5** 改进 Docker/Podman endpoint 诊断，让 `docker_diagnose` 不只报告 Docker，也能报告 Podman 和自动探测状态。（后续实现）
+- [x] **2.6** 按 endpoint 缓存或复用运行时 HTTP handler/client，避免每次 API 调用都创建新 client。（现在实现）
 
 ## 3. 容器工具
 
@@ -76,7 +76,7 @@
 ## 9. 测试
 
 - [ ] **9.1** 扩展 `ContainerMcpOptions` 解析和 timeout 归一化测试。（现在实现）
-- [ ] **9.2** 增加 `EngineResolver` Docker/Podman 选择行为测试。（现在实现）
+- [ ] **9.2** 增加 `EngineResolver` Docker/Podman 选择行为测试。（后续实现）
 - [ ] **9.3** 通过公开或 internal seam 增加 `DockerApiClientFactory.TryParseHost` 行为测试。（现在实现）
 - [ ] **9.4** 增加 `VolumePolicy` 对命名卷接受和 host path 拒绝的测试。（现在实现）
 - [ ] **9.5** 增加 `ContainerCreateRequestBuilder` 请求体生成测试。（现在实现）
@@ -100,7 +100,7 @@
 - [ ] **11.1** 文档化 `container_logs` 响应结构：`stdout`、`stderr`、`text`、`bytesRead`、`frameCount`、`truncated`、`framed`。（现在实现）
 - [ ] **11.2** 文档化 `image_pull` 响应结构：`events`、`eventCount`、`lastStatus`、`lastError`、`truncated`。（现在实现）
 - [ ] **11.3** 文档化 HTTP 和 stdio 两种 transport 的差异。（现在实现）
-- [ ] **11.4** 文档化当前不支持的能力：Windows Podman、远程 target、bind mount、真正无限流、registry auth、network 工具。（现在实现）
+- [ ] **11.4** 文档化当前不支持的能力：Windows Podman、远程 target、bind mount、真正无限流、registry auth、network 工具。（后续实现）
 - [ ] **11.5** 修复 README 在仓库中显示为乱码的问题。（现在实现）
 
 ## 12. CI / 发布

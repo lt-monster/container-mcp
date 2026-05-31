@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
@@ -18,11 +19,13 @@ internal sealed record RuntimeEndpoint(ContainerEngine Engine, RuntimeEndpointKi
     public override string ToString() => $"{Kind}:{Address}";
 }
 
-internal sealed class DockerApiClientFactory
+internal sealed class DockerApiClientFactory : IDisposable
 {
     private readonly ContainerMcpOptions _options;
+    private readonly ConcurrentDictionary<string, Lazy<HttpClient>> _clients = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _probeLock = new();
     private readonly Dictionary<string, EndpointProbeCacheEntry> _probeCache = new(StringComparer.OrdinalIgnoreCase);
+    private bool _disposed;
 
     public DockerApiClientFactory(ContainerMcpOptions options) => _options = options;
 
@@ -41,9 +44,18 @@ internal sealed class DockerApiClientFactory
         return null;
     }
 
-    public HttpClient Create(RuntimeEndpoint endpoint, TimeSpan? connectTimeout = null)
+    public HttpClient GetClient(RuntimeEndpoint endpoint)
     {
-        var timeout = connectTimeout ?? Min(_options.ApiProbeTimeout, _options.ApiTimeout);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        return _clients.GetOrAdd(
+            endpoint.ToString(),
+            _ => new Lazy<HttpClient>(() => CreateClient(endpoint), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+    }
+
+    private HttpClient CreateClient(RuntimeEndpoint endpoint)
+    {
+        var timeout = Min(_options.ApiProbeTimeout, _options.ApiTimeout);
         var handler = new SocketsHttpHandler
         {
             ConnectCallback = async (context, cancellationToken) =>
@@ -66,6 +78,25 @@ internal sealed class DockerApiClientFactory
         };
     }
 
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        foreach (var client in _clients.Values)
+        {
+            if (client.IsValueCreated)
+            {
+                client.Value.Dispose();
+            }
+        }
+
+        _clients.Clear();
+    }
+
     public async Task<bool> CanConnectAsync(RuntimeEndpoint endpoint, CancellationToken cancellationToken)
     {
         var cacheKey = endpoint.ToString();
@@ -76,7 +107,7 @@ internal sealed class DockerApiClientFactory
 
         try
         {
-            using var client = Create(endpoint);
+            var client = GetClient(endpoint);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(_options.ApiProbeTimeout);
             using var response = await client.GetAsync("/_ping", timeout.Token).WaitAsync(_options.ApiProbeTimeout, cancellationToken);
