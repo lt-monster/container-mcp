@@ -24,8 +24,39 @@ internal sealed class ContainerApiAdapter
     public Task<JsonElement> PostAsync(ResolvedEngine engine, string path, JsonNode? body, CancellationToken cancellationToken) =>
         SendAsync(engine, HttpMethod.Post, path, body, cancellationToken);
 
+    public Task<JsonObject> PostJsonMessageStreamAsync(ResolvedEngine engine, string path, JsonNode? body, int maxEvents, CancellationToken cancellationToken) =>
+        SendJsonMessageStreamAsync(engine, HttpMethod.Post, path, body, maxEvents, cancellationToken);
+
     public Task<JsonElement> DeleteAsync(ResolvedEngine engine, string path, CancellationToken cancellationToken) =>
         SendAsync(engine, HttpMethod.Delete, path, null, cancellationToken);
+
+    public async Task<byte[]> GetBytesAsync(ResolvedEngine engine, string path, int maxBytes, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await GetBytesCoreAsync(engine, path, maxBytes, cancellationToken).WaitAsync(_options.ApiTimeout, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw Timeout(engine);
+        }
+        catch (TimeoutException)
+        {
+            throw Timeout(engine);
+        }
+        catch (IOException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (SocketException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+    }
 
     public async Task<string> GetStringAsync(ResolvedEngine engine, string path, CancellationToken cancellationToken)
     {
@@ -83,6 +114,34 @@ internal sealed class ContainerApiAdapter
         }
     }
 
+    private async Task<JsonObject> SendJsonMessageStreamAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, int maxEvents, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await SendJsonMessageStreamCoreAsync(engine, method, path, body, maxEvents, cancellationToken).WaitAsync(_options.ApiTimeout, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw Timeout(engine);
+        }
+        catch (TimeoutException)
+        {
+            throw Timeout(engine);
+        }
+        catch (IOException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (SocketException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+    }
+
     private async Task<string> GetStringCoreAsync(ResolvedEngine engine, string path, CancellationToken cancellationToken)
     {
         using var client = _factory.Create(engine.Endpoint);
@@ -94,6 +153,40 @@ internal sealed class ContainerApiAdapter
         }
 
         return body;
+    }
+
+    private async Task<byte[]> GetBytesCoreAsync(ResolvedEngine engine, string path, int maxBytes, CancellationToken cancellationToken)
+    {
+        using var client = _factory.Create(engine.Endpoint);
+        using var response = await client.GetAsync(path, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var body = await ReadAtMostAsync(stream, maxBytes, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            ThrowRuntimeError(engine, path, response.StatusCode, Encoding.UTF8.GetString(body));
+        }
+
+        return body;
+    }
+
+    private async Task<JsonObject> SendJsonMessageStreamCoreAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, int maxEvents, CancellationToken cancellationToken)
+    {
+        using var client = _factory.Create(engine.Endpoint);
+        using var request = new HttpRequestMessage(method, path);
+        if (body is not null)
+        {
+            request.Content = new StringContent(body.ToCompactJson(), Encoding.UTF8, "application/json");
+        }
+
+        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            using var reader = new StreamReader(stream);
+            ThrowRuntimeError(engine, path, response.StatusCode, await reader.ReadToEndAsync(cancellationToken));
+        }
+
+        return await DockerJsonMessageStream.ParseAsync(stream, maxEvents, cancellationToken);
     }
 
     private async Task<JsonElement> SendCoreAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, CancellationToken cancellationToken)
@@ -162,6 +255,26 @@ internal sealed class ContainerApiAdapter
         }
 
         return body;
+    }
+
+    private static async Task<byte[]> ReadAtMostAsync(Stream stream, int maxBytes, CancellationToken cancellationToken)
+    {
+        maxBytes = Math.Max(1, maxBytes);
+        using var output = new MemoryStream(capacity: Math.Min(maxBytes, 81920));
+        var buffer = new byte[Math.Min(maxBytes, 81920)];
+        while (output.Length < maxBytes)
+        {
+            var remaining = maxBytes - (int)output.Length;
+            var read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)), cancellationToken);
+            if (read == 0)
+            {
+                break;
+            }
+
+            output.Write(buffer, 0, read);
+        }
+
+        return output.ToArray();
     }
 
     private static ContainerMcpException Timeout(ResolvedEngine engine) =>

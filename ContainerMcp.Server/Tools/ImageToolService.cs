@@ -1,10 +1,13 @@
 using System.Text.Json.Nodes;
 using ContainerMcp.ContainerRuntime;
+using ContainerMcp.Models;
 
 namespace ContainerMcp.Tools;
 
 internal sealed class ImageToolService
 {
+    private const int MaxPullEvents = 500;
+
     private readonly RuntimeToolSupport _runtime;
     private readonly ContainerApiAdapter _api;
 
@@ -26,7 +29,15 @@ internal sealed class ImageToolService
         var image = ToolArgumentReader.RequireString(args, "image");
         var engine = await _runtime.ResolveAsync(args, cancellationToken);
         var path = "/images/create?fromImage=" + Uri.EscapeDataString(image);
-        var result = await _api.PostAsync(engine, path, null, cancellationToken);
+        var result = await _api.PostJsonMessageStreamAsync(engine, path, null, MaxPullEvents, cancellationToken);
+        if (result.TryGetPropertyValue("lastError", out var errorNode)
+            && errorNode is JsonValue errorValue
+            && errorValue.TryGetValue<string>(out var error)
+            && !string.IsNullOrWhiteSpace(error))
+        {
+            throw new ContainerMcpException(McpErrorCode.OperationFailed, error, StatusCodes.Status500InternalServerError, engine.Endpoint.ToString());
+        }
+
         return RuntimeToolSupport.Success(engine, result);
     }
 

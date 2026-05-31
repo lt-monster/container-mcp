@@ -5,6 +5,9 @@ namespace ContainerMcp.Tools;
 
 internal sealed class ContainerToolService
 {
+    private const int DefaultLogMaxBytes = 1024 * 1024;
+    private const int HardLogMaxBytes = 4 * 1024 * 1024;
+
     private readonly RuntimeToolSupport _runtime;
     private readonly ContainerApiAdapter _api;
     private readonly ContainerCreateRequestBuilder _createRequestBuilder;
@@ -79,6 +82,7 @@ internal sealed class ContainerToolService
     public async Task<JsonObject> ContainerLogsAsync(JsonElement args, CancellationToken cancellationToken)
     {
         var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var maxBytes = Math.Clamp(ToolArgumentReader.OptionalInt(args, "maxBytes") ?? DefaultLogMaxBytes, 1, HardLogMaxBytes);
         var engine = await _runtime.ResolveAsync(args, cancellationToken);
         var query = new List<string>
         {
@@ -102,7 +106,8 @@ internal sealed class ContainerToolService
             query.Add("timestamps=true");
         }
 
-        var text = await _api.GetStringAsync(engine, $"/containers/{Uri.EscapeDataString(id)}/logs?{string.Join('&', query)}", cancellationToken);
-        return RuntimeToolSupport.Success(engine, text);
+        var bytes = await _api.GetBytesAsync(engine, $"/containers/{Uri.EscapeDataString(id)}/logs?{string.Join('&', query)}", maxBytes + 8192, cancellationToken);
+        var result = DockerRawStreamDecoder.Decode(bytes, maxBytes);
+        return RuntimeToolSupport.Success(engine, result);
     }
 }
