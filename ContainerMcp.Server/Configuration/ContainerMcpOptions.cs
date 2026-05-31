@@ -18,7 +18,6 @@ internal sealed record ContainerMcpOptions(
     string Urls,
     ContainerEngine DefaultEngine,
     string DefaultTarget,
-    bool ApiFirst,
     TimeSpan ApiTimeout,
     TimeSpan ApiProbeTimeout,
     TimeSpan ToolTimeout)
@@ -38,8 +37,6 @@ internal sealed record ContainerMcpOptions(
         var defaultTarget = ReadOption(args, "--default-target")
             ?? Environment.GetEnvironmentVariable("CONTAINER_MCP_DEFAULT_TARGET")
             ?? "local";
-        var apiFirst = ReadBool(ReadOption(args, "--api-first")
-            ?? Environment.GetEnvironmentVariable("CONTAINER_MCP_API_FIRST"), defaultValue: true);
         var apiTimeout = ReadTimeout(
             ReadOption(args, "--api-timeout-seconds")
             ?? Environment.GetEnvironmentVariable("CONTAINER_MCP_API_TIMEOUT_SECONDS"),
@@ -60,7 +57,6 @@ internal sealed record ContainerMcpOptions(
             urls,
             ParseEngine(defaultEngine),
             defaultTarget,
-            apiFirst,
             normalized.ApiTimeout,
             normalized.ApiProbeTimeout,
             normalized.ToolTimeout);

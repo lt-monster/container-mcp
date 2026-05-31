@@ -77,7 +77,6 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 
 重要默认值：
 
-- 默认启用 API-first 行为。
 - API 超时默认为 10 秒。
 - 探测超时默认为 2 秒。
 - 工具超时默认为 15 秒。

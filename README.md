@@ -77,7 +77,6 @@ Options are read in this order: command-line arguments, environment variables, t
 
 Important runtime defaults:
 
-- API-first behavior is enabled by default.
 - API timeout defaults to 10 seconds.
 - Probe timeout defaults to 2 seconds.
 - Tool timeout defaults to 15 seconds.

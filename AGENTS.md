@@ -37,7 +37,6 @@ Important defaults:
 - `--urls`, `CONTAINER_MCP_HTTP_URLS`, or `ASPNETCORE_URLS`: defaults to `http://127.0.0.1:7010`.
 - `--default-engine` or `CONTAINER_MCP_DEFAULT_ENGINE`: defaults to `auto`.
 - `--default-target` or `CONTAINER_MCP_DEFAULT_TARGET`: defaults to `local`.
-- API-first behavior is enabled by default.
 - API timeout defaults to 10 seconds, probe timeout defaults to 2 seconds, and tool timeout defaults to 15 seconds.
 
 Version 1 only supports the local target. Docker is reached through `\\.\pipe\docker_engine` on Windows and `/var/run/docker.sock` on Unix unless `DOCKER_HOST` is set. Podman on Windows is not implemented for v1; on Unix it is discovered from `CONTAINER_MCP_PODMAN_HOST`, `PODMAN_HOST`, or common socket paths.

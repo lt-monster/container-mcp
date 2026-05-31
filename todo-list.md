@@ -13,7 +13,7 @@
 - [ ] **2.1** 实现 Windows 上的 Podman endpoint 支持。（后续实现）
 - [ ] **2.2** 在远程 target 有完整设计前，继续只支持 `target=local`。（现在实现）
 - [ ] **2.3** 设计远程 target 支持，包括 resolver、工具 schema、认证和错误处理。（后续实现）
-- [ ] **2.4** 实现 `ApiFirst` 行为，或移除当前未使用的配置项。（现在实现）
+- [x] **2.4** 实现 `ApiFirst` 行为，或移除当前未使用的配置项。（现在实现）
 - [ ] **2.5** 改进 Docker/Podman endpoint 诊断，让 `docker_diagnose` 不只报告 Docker，也能报告 Podman 和自动探测状态。（现在实现）
 - [ ] **2.6** 按 endpoint 缓存或复用运行时 HTTP handler/client，避免每次 API 调用都创建新 client。（现在实现）
 
