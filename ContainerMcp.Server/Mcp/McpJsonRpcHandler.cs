@@ -15,18 +15,19 @@ internal sealed class McpJsonRpcHandler
         _options = options;
     }
 
-    public async Task<JsonObject> HandleAsync(JsonElement request, CancellationToken cancellationToken)
+    public async Task<JsonObject?> HandleAsync(JsonElement request, CancellationToken cancellationToken)
     {
-        var id = request.TryGetProperty("id", out var idProperty) ? idProperty.Clone() : default(JsonElement?);
+        var hasId = request.TryGetProperty("id", out var idProperty);
+        var id = hasId ? idProperty.Clone() : default(JsonElement?);
         try
         {
             if (!request.TryGetProperty("method", out var methodProperty) || methodProperty.ValueKind != JsonValueKind.String)
             {
-                return Error(id, -32600, "Invalid JSON-RPC request.");
+                return hasId ? Error(id, -32600, "Invalid JSON-RPC request.") : null;
             }
 
             var method = methodProperty.GetString();
-            return method switch
+            var response = method switch
             {
                 "initialize" => Result(id, InitializeResult()),
                 "ping" => Result(id, new JsonObject()),
@@ -35,24 +36,26 @@ internal sealed class McpJsonRpcHandler
                 "notifications/initialized" => Result(id, new JsonObject()),
                 _ => Error(id, -32601, $"Method '{method}' is not supported.")
             };
+
+            return hasId ? response : null;
         }
         catch (ContainerMcpException ex)
         {
-            return Error(id, -32000, ex.Message, new JsonObject
+            return hasId ? Error(id, -32000, ex.Message, new JsonObject
             {
                 ["errorCode"] = ex.ErrorCode,
                 ["message"] = ex.Message,
                 ["statusCode"] = ex.StatusCode,
                 ["endpoint"] = ex.Endpoint
-            });
+            }) : null;
         }
         catch (Exception ex)
         {
-            return Error(id, -32603, ex.Message, new JsonObject
+            return hasId ? Error(id, -32603, ex.Message, new JsonObject
             {
                 ["errorCode"] = McpErrorCode.OperationFailed,
                 ["message"] = ex.Message
-            });
+            }) : null;
         }
     }
 

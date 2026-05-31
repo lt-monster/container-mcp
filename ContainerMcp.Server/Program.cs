@@ -41,6 +41,11 @@ app.MapPost("/mcp", async (HttpContext httpContext, McpJsonRpcHandler handler) =
     {
         using var document = await JsonDocument.ParseAsync(httpContext.Request.Body, cancellationToken: httpContext.RequestAborted);
         var response = await handler.HandleAsync(document.RootElement, httpContext.RequestAborted);
+        if (response is null)
+        {
+            return Results.NoContent();
+        }
+
         return JsonNodeExtensions.JsonResult(response);
     }
     catch (JsonException ex)

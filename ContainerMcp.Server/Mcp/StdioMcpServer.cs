@@ -34,7 +34,7 @@ internal sealed class StdioMcpServer
                 continue;
             }
 
-            JsonObject response;
+            JsonObject? response;
             try
             {
                 using var document = JsonDocument.Parse(line);
@@ -45,7 +45,10 @@ internal sealed class StdioMcpServer
                 response = McpJsonRpcHandler.Error(null, -32700, ex.Message);
             }
 
-            await writer.WriteLineAsync(response.ToCompactJson());
+            if (response is not null)
+            {
+                await writer.WriteLineAsync(response.ToCompactJson());
+            }
         }
     }
 }
