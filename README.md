@@ -47,7 +47,14 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | Tool | Purpose |
 |---|---|
 | `image_list` | List local images. |
+| `image_inspect` | Inspect a local image. |
 | `image_pull` | Pull an image. |
+| `image_tag` | Tag a local image. |
+| `image_prune` | Prune unused local images. |
+| `image_build` | Build an image from a tar build context. |
+| `image_push` | Push an image. |
+| `image_load` | Load images from a tar archive. |
+| `image_save` | Save a local image to a tar archive. |
 | `image_remove` | Remove an image. |
 | `container_list` | List containers. |
 | `container_inspect` | Inspect a container. |
@@ -63,6 +70,8 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `port_find_free` | Find available local ports. |
 
 Runtime-related tools accept shared `engine` and `target` parameters unless the individual tool schema already defines them.
+
+Image build, load, and save tools operate on local tar file paths. `image_build` expects an existing tar build context, `image_load` expects an existing image tar archive, and `image_save` writes a tar archive to a local output path. Registry authentication for private image pull/push is not implemented yet.
 
 ## ⚙️ Configuration
 
@@ -112,6 +121,7 @@ container-mcp/
 - Host bind mounts are rejected in v1.
 - Only named or anonymous container volumes are allowed.
 - Only `target=local` is supported.
+- Image tar import/export uses explicit local file paths and bounded reads/writes.
 - stdio mode reserves stdout for JSON-RPC responses; diagnostics must go to stderr.
 - Long-running background work should not be added to MCP request paths.
 
@@ -123,11 +133,12 @@ Common commands:
 
 ```powershell
 dotnet build
+dotnet test
 dotnet run --project ContainerMcp.Server -- --transport http --urls http://127.0.0.1:7010
 dotnet run --project ContainerMcp.Server -- --transport stdio
 ```
 
-There is currently no test project. When adding behavior, prefer focused automated tests over manual Docker checks alone.
+The solution includes focused xUnit tests in `ContainerMcp.Server.Tests/`. When adding behavior, prefer focused automated tests over manual Docker checks alone.
 
 For agent and maintenance guidance, see [AGENTS.md](AGENTS.md).
 

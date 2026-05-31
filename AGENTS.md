@@ -48,7 +48,14 @@ Tool registration lives in `ContainerMcp.Server/Mcp/McpToolRegistry.cs`.
 Current tools:
 
 - `image_list`
+- `image_inspect`
 - `image_pull`
+- `image_tag`
+- `image_prune`
+- `image_build`
+- `image_push`
+- `image_load`
+- `image_save`
 - `image_remove`
 - `container_list`
 - `container_inspect`
@@ -65,6 +72,8 @@ Current tools:
 
 All runtime-related tools accept shared `engine` and `target` parameters unless the tool schema already defines parameters with those names. Preserve that behavior when adding tools.
 
+Image build, load, and save use local tar file paths. `image_build` accepts an existing tar build context, `image_load` accepts an existing image tar archive, and `image_save` writes a tar archive to `outputPath`. Do not put tar payloads into MCP JSON responses. Registry authentication for private pull/push remains a separate design item.
+
 ## Development Commands
 
 Run from the repository root:
@@ -75,7 +84,7 @@ dotnet run --project ContainerMcp.Server -- --transport http --urls http://127.0
 dotnet run --project ContainerMcp.Server -- --transport stdio
 ```
 
-The repository currently has no test project. When adding meaningful behavior, prefer adding focused tests rather than relying only on manual Docker checks.
+The repository includes focused xUnit tests in `ContainerMcp.Server.Tests/`. When adding meaningful behavior, prefer adding focused tests rather than relying only on manual Docker checks.
 
 ## Coding Conventions
 
@@ -104,7 +113,7 @@ The repository currently has no test project. When adding meaningful behavior, p
 
 Tool execution is wrapped by `ContainerMcpOptions.ToolTimeout`. Lower-level runtime API calls also have separate API and probe timeouts.
 
-`DockerApiClientFactory` creates `HttpClient` instances with custom connection callbacks for named pipes, Unix sockets, and TCP endpoints. Endpoint probe results are cached briefly, so diagnostics and tests should not assume every call immediately re-probes.
+`DockerApiClientFactory` caches `HttpClient` instances per runtime endpoint with custom connection callbacks for named pipes, Unix sockets, and TCP endpoints. Endpoint probe results are cached briefly, so diagnostics and tests should not assume every call immediately re-probes.
 
 `PortDiscoveryService` does not depend on a container engine. It returns `engine: "none"` and `target: "local"`.
 
