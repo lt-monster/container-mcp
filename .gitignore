@@ -8,6 +8,8 @@ coverage.*
 *.coverage
 *.coveragexml
 *.trx
+*.binlog
+*.cobertura.xml
 
 # .NET user and generated files
 *.user
@@ -17,15 +19,20 @@ coverage.*
 *.sln.docstates
 *.nupkg
 *.snupkg
+packages/
 *.vsp
 *.vspx
 *.psess
+*.pdb
+*.mdb
 
 # Visual Studio / Rider / VS Code local state
 .vs/
 .idea/
 .vscode/
 *.DotSettings.user
+_ReSharper*/
+*.sln.iml
 
 # Local agent tooling
 .agents/
