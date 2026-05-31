@@ -63,6 +63,21 @@ internal static class ToolArgumentReader
         return int.TryParse(property.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
     }
 
+    public static long? OptionalLong(JsonElement args, string name)
+    {
+        if (!args.TryGetProperty(name, out var property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt64(out var value))
+        {
+            return value;
+        }
+
+        return long.TryParse(property.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+    }
+
     public static string[]? OptionalStringArray(JsonElement args, string name)
     {
         if (!args.TryGetProperty(name, out var property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)

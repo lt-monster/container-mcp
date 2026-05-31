@@ -25,7 +25,13 @@ internal sealed class ContainerApiAdapter
         SendAsync(engine, HttpMethod.Post, path, body, cancellationToken);
 
     public Task<JsonObject> PostJsonMessageStreamAsync(ResolvedEngine engine, string path, JsonNode? body, int maxEvents, CancellationToken cancellationToken) =>
-        SendJsonMessageStreamAsync(engine, HttpMethod.Post, path, body, maxEvents, cancellationToken);
+        SendJsonMessageStreamAsync(engine, HttpMethod.Post, path, body, null, null, maxEvents, cancellationToken);
+
+    public Task<JsonObject> PostJsonMessageStreamAsync(ResolvedEngine engine, string path, JsonNode? body, IReadOnlyDictionary<string, string> headers, int maxEvents, CancellationToken cancellationToken) =>
+        SendJsonMessageStreamAsync(engine, HttpMethod.Post, path, body, null, headers, maxEvents, cancellationToken);
+
+    public Task<JsonObject> PostTarJsonMessageStreamAsync(ResolvedEngine engine, string path, Stream tarStream, int maxEvents, CancellationToken cancellationToken) =>
+        SendJsonMessageStreamAsync(engine, HttpMethod.Post, path, null, tarStream, null, maxEvents, cancellationToken);
 
     public Task<JsonElement> DeleteAsync(ResolvedEngine engine, string path, CancellationToken cancellationToken) =>
         SendAsync(engine, HttpMethod.Delete, path, null, cancellationToken);
@@ -35,6 +41,34 @@ internal sealed class ContainerApiAdapter
         try
         {
             return await GetBytesCoreAsync(engine, path, maxBytes, cancellationToken).WaitAsync(_options.ApiTimeout, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw Timeout(engine);
+        }
+        catch (TimeoutException)
+        {
+            throw Timeout(engine);
+        }
+        catch (IOException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (SocketException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+    }
+
+    public async Task<JsonObject> GetToFileAsync(ResolvedEngine engine, string path, string outputPath, long maxBytes, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await GetToFileCoreAsync(engine, path, outputPath, maxBytes, cancellationToken).WaitAsync(_options.ApiTimeout, cancellationToken);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -114,11 +148,11 @@ internal sealed class ContainerApiAdapter
         }
     }
 
-    private async Task<JsonObject> SendJsonMessageStreamAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, int maxEvents, CancellationToken cancellationToken)
+    private async Task<JsonObject> SendJsonMessageStreamAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, Stream? tarStream, IReadOnlyDictionary<string, string>? headers, int maxEvents, CancellationToken cancellationToken)
     {
         try
         {
-            return await SendJsonMessageStreamCoreAsync(engine, method, path, body, maxEvents, cancellationToken).WaitAsync(_options.ApiTimeout, cancellationToken);
+            return await SendJsonMessageStreamCoreAsync(engine, method, path, body, tarStream, headers, maxEvents, cancellationToken).WaitAsync(_options.ApiTimeout, cancellationToken);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -169,13 +203,77 @@ internal sealed class ContainerApiAdapter
         return body;
     }
 
-    private async Task<JsonObject> SendJsonMessageStreamCoreAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, int maxEvents, CancellationToken cancellationToken)
+    private async Task<JsonObject> GetToFileCoreAsync(ResolvedEngine engine, string path, string outputPath, long maxBytes, CancellationToken cancellationToken)
+    {
+        maxBytes = Math.Max(1, maxBytes);
+        var client = _factory.GetClient(engine.Endpoint);
+        using var response = await client.GetAsync(path, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            using var reader = new StreamReader(stream);
+            ThrowRuntimeError(engine, path, response.StatusCode, await reader.ReadToEndAsync(cancellationToken));
+        }
+
+        var bytesWritten = 0L;
+        var buffer = new byte[81920];
+        try
+        {
+            await using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, buffer.Length, useAsync: true);
+            while (true)
+            {
+                var read = await stream.ReadAsync(buffer, cancellationToken);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                if (bytesWritten + read > maxBytes)
+                {
+                    throw new ContainerMcpException(
+                        McpErrorCode.OperationFailed,
+                        $"Docker API response exceeded maxBytes ({maxBytes}).",
+                        StatusCodes.Status413PayloadTooLarge,
+                        engine.Endpoint.ToString());
+                }
+
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                bytesWritten += read;
+            }
+        }
+        catch
+        {
+            TryDelete(outputPath);
+            throw;
+        }
+
+        return new JsonObject
+        {
+            ["outputPath"] = outputPath,
+            ["bytesWritten"] = bytesWritten
+        };
+    }
+
+    private async Task<JsonObject> SendJsonMessageStreamCoreAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, Stream? tarStream, IReadOnlyDictionary<string, string>? headers, int maxEvents, CancellationToken cancellationToken)
     {
         var client = _factory.GetClient(engine.Endpoint);
         using var request = new HttpRequestMessage(method, path);
         if (body is not null)
         {
             request.Content = new StringContent(body.ToCompactJson(), Encoding.UTF8, "application/json");
+        }
+        else if (tarStream is not null)
+        {
+            request.Content = new StreamContent(tarStream);
+            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
+        }
+
+        if (headers is not null)
+        {
+            foreach (var header in headers)
+            {
+                request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
         }
 
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -275,6 +373,17 @@ internal sealed class ContainerApiAdapter
         }
 
         return output.ToArray();
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+        }
     }
 
     private static ContainerMcpException Timeout(ResolvedEngine engine) =>
