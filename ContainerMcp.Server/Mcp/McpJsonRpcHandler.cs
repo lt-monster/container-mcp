@@ -41,7 +41,7 @@ internal sealed class McpJsonRpcHandler
         }
         catch (ContainerMcpException ex)
         {
-            return hasId ? Error(id, -32000, ex.Message, new JsonObject
+            return hasId ? Error(id, JsonRpcCode(ex), ex.Message, new JsonObject
             {
                 ["errorCode"] = ex.ErrorCode,
                 ["message"] = ex.Message,
@@ -137,6 +137,21 @@ internal sealed class McpJsonRpcHandler
             McpErrorCode.EngineUnavailable,
             $"Tool '{name}' timed out after {_options.ToolTimeout.TotalSeconds:0} seconds.",
             StatusCodes.Status504GatewayTimeout);
+
+    private static int JsonRpcCode(ContainerMcpException ex) => ex.ErrorCode switch
+    {
+        McpErrorCode.InvalidArgument => -32602,
+        McpErrorCode.UnsupportedTarget => -32602,
+        McpErrorCode.UnsupportedVolumeMount => -32602,
+        McpErrorCode.EngineNotFound => -32001,
+        McpErrorCode.EngineUnavailable => -32002,
+        McpErrorCode.ApiUnavailable => -32003,
+        McpErrorCode.ContainerNotFound => -32004,
+        McpErrorCode.ImageNotFound => -32005,
+        McpErrorCode.VolumeNotFound => -32006,
+        McpErrorCode.PortRangeExhausted => -32007,
+        _ => -32000
+    };
 
     private static JsonObject Result(JsonElement? id, JsonNode? result) => new()
     {
