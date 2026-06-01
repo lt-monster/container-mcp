@@ -71,6 +71,8 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 
 Runtime-related tools accept shared `engine` and `target` parameters unless the individual tool schema already defines them.
 
+`container_create` supports common Docker create options including `name`, `platform`, `ports`, `env`, `volumes`, `command`, `workingDir`, `user`, `hostname`, `networkMode`, `tty`, `entrypoint`, resource limits, restart policy, labels, and healthcheck settings.
+
 Image build, load, and save tools operate on local tar file paths. `image_build` expects an existing tar build context, `image_load` expects an existing image tar archive, and `image_save` writes a tar archive to a local output path. Registry authentication for private image pull/push is not implemented yet.
 
 ## ⚙️ Configuration

@@ -71,6 +71,8 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 
 运行时相关工具默认支持共享参数 `engine` 和 `target`，除非对应工具 schema 已经显式定义同名参数。
 
+`container_create` 支持常见 Docker 创建参数，包括 `name`、`platform`、`ports`、`env`、`volumes`、`command`、`workingDir`、`user`、`hostname`、`networkMode`、`tty`、`entrypoint`、资源限制、restart policy、labels 和 healthcheck 设置。
+
 镜像构建、导入和导出工具使用本地 tar 文件路径。`image_build` 需要已有 tar 构建上下文，`image_load` 需要已有镜像 tar 归档，`image_save` 会将镜像 tar 写入本地输出路径。私有 registry 的认证方案尚未实现。
 
 ## 配置
