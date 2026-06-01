@@ -32,6 +32,7 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_kill")]
     [InlineData("container_pause")]
     [InlineData("container_unpause")]
+    [InlineData("container_rename")]
     public void List_IncludesContainerManagementTool(string toolName)
     {
         var registry = CreateRegistry();
@@ -60,6 +61,8 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_kill", """{"idOrName":"web","signal":9}""", "Argument 'signal' must be a string.")]
     [InlineData("container_pause", """{}""", "Missing required argument 'idOrName'.")]
     [InlineData("container_unpause", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("container_rename", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("container_rename", """{"idOrName":"web"}""", "Missing required argument 'name'.")]
     [InlineData("container_create", """{"image":"nginx","command":{"bad":true}}""", "Argument 'command' does not match any allowed schema.")]
     [InlineData("volume_create", """{"name":"cache","labels":{"ttl":30}}""", "Argument 'labels.ttl' must be a string.")]
     public async Task CallAsync_RejectsInvalidArgumentsBeforeHandlerRuns(string toolName, string json, string expectedMessage)

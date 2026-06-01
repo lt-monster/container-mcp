@@ -17,6 +17,12 @@ public sealed class ContainerToolRequestTests
     }
 
     [Fact]
+    public void BuildRenamePath_UsesEscapedContainerAndName()
+    {
+        Assert.Equal("/containers/web%2Fapi/rename?name=new%20web", ContainerToolRequests.BuildRenamePath("web/api", "new web"));
+    }
+
+    [Fact]
     public void BuildStopPath_RejectsNegativeTimeout()
     {
         var exception = Assert.Throws<ContainerMcp.Models.ContainerMcpException>(

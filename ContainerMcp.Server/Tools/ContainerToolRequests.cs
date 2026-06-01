@@ -8,6 +8,9 @@ internal static class ContainerToolRequests
     public static string BuildUnpausePath(string idOrName) =>
         $"/containers/{Uri.EscapeDataString(idOrName)}/unpause";
 
+    public static string BuildRenamePath(string idOrName, string name) =>
+        $"/containers/{Uri.EscapeDataString(idOrName)}/rename?name={Uri.EscapeDataString(name)}";
+
     public static string BuildStopPath(string idOrName, int? timeoutSeconds)
     {
         var path = $"/containers/{Uri.EscapeDataString(idOrName)}/stop";

@@ -106,6 +106,7 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
             T("container_start", "Start a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name.") }, ["idOrName"], _containers.ContainerStartAsync),
             T("container_pause", "Pause a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name.") }, ["idOrName"], _containers.ContainerPauseAsync),
             T("container_unpause", "Unpause a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name.") }, ["idOrName"], _containers.ContainerUnpauseAsync),
+            T("container_rename", "Rename a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["name"] = StringSchema("New container name.") }, ["idOrName", "name"], _containers.ContainerRenameAsync),
             T("container_stop", "Stop a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["timeoutSeconds"] = IntSchema() }, ["idOrName"], _containers.ContainerStopAsync),
             T("container_restart", "Restart a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["timeoutSeconds"] = IntSchema() }, ["idOrName"], _containers.ContainerRestartAsync),
             T("container_kill", "Kill a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["signal"] = StringSchema("Signal to send, for example SIGKILL or SIGTERM.") }, ["idOrName"], _containers.ContainerKillAsync),
