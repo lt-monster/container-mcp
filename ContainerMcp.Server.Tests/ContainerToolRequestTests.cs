@@ -5,6 +5,18 @@ namespace ContainerMcp.Server.Tests;
 public sealed class ContainerToolRequestTests
 {
     [Fact]
+    public void BuildPausePath_UsesEscapedContainerInPostPath()
+    {
+        Assert.Equal("/containers/web%2Fapi/pause", ContainerToolRequests.BuildPausePath("web/api"));
+    }
+
+    [Fact]
+    public void BuildUnpausePath_UsesEscapedContainerInPostPath()
+    {
+        Assert.Equal("/containers/web%2Fapi/unpause", ContainerToolRequests.BuildUnpausePath("web/api"));
+    }
+
+    [Fact]
     public void BuildStopPath_RejectsNegativeTimeout()
     {
         var exception = Assert.Throws<ContainerMcp.Models.ContainerMcpException>(
