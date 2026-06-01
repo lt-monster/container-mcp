@@ -100,11 +100,37 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
                 ["env"] = ObjectMapSchema(),
                 ["volumes"] = StringArraySchema("Named volume mounts using source:target[:mode]. Bind mounts are rejected in v1."),
                 ["command"] = CommandSchema(),
+                ["workingDir"] = StringSchema("Working directory inside the container."),
+                ["user"] = StringSchema("User to run as inside the container."),
+                ["hostname"] = StringSchema("Container hostname."),
+                ["networkMode"] = StringSchema("Container network mode."),
+                ["platform"] = StringSchema("Platform, for example linux/amd64."),
+                ["tty"] = BoolSchema(),
+                ["entrypoint"] = CommandSchema(),
+                ["memoryBytes"] = IntSchema(),
+                ["memorySwapBytes"] = IntSchema(),
+                ["memoryReservationBytes"] = IntSchema(),
+                ["cpuShares"] = IntSchema(),
+                ["cpuQuota"] = IntSchema(),
+                ["cpuPeriod"] = IntSchema(),
+                ["nanoCpus"] = IntSchema(),
+                ["pidsLimit"] = IntSchema(),
+                ["healthcheck"] = HealthcheckSchema(),
                 ["restartPolicy"] = StringSchema("Restart policy name."),
                 ["labels"] = ObjectMapSchema()
             }, ["image"], _containers.ContainerCreateAsync),
             T("container_start", "Start a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name.") }, ["idOrName"], _containers.ContainerStartAsync),
+            T("container_pause", "Pause a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name.") }, ["idOrName"], _containers.ContainerPauseAsync),
+            T("container_unpause", "Unpause a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name.") }, ["idOrName"], _containers.ContainerUnpauseAsync),
+            T("container_rename", "Rename a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["name"] = StringSchema("New container name.") }, ["idOrName", "name"], _containers.ContainerRenameAsync),
+            T("container_exec_create", "Create an exec instance in a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["command"] = CommandSchema(), ["env"] = ObjectMapSchema(), ["user"] = StringSchema("User to run as inside the container."), ["workingDir"] = StringSchema("Working directory inside the container."), ["tty"] = BoolSchema(), ["attachStdout"] = BoolSchema(), ["attachStderr"] = BoolSchema() }, ["idOrName", "command"], _containers.ContainerExecCreateAsync),
+            T("container_exec_start", "Start an exec instance and read bounded output.", new JsonObject { ["execId"] = StringSchema("Exec instance ID."), ["tty"] = BoolSchema(), ["maxBytes"] = IntSchema() }, ["execId"], _containers.ContainerExecStartAsync),
+            T("container_stats", "Read a bounded container stats snapshot.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name.") }, ["idOrName"], _containers.ContainerStatsAsync),
+            T("container_top", "List processes running in a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["psArgs"] = StringSchema("Arguments passed to ps, for example aux.") }, ["idOrName"], _containers.ContainerTopAsync),
+            T("container_wait", "Wait for a container condition and return its exit status.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["condition"] = EnumSchema("not-running", "next-exit", "removed"), ["timeoutSeconds"] = IntSchema() }, ["idOrName"], _containers.ContainerWaitAsync),
             T("container_stop", "Stop a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["timeoutSeconds"] = IntSchema() }, ["idOrName"], _containers.ContainerStopAsync),
+            T("container_restart", "Restart a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["timeoutSeconds"] = IntSchema() }, ["idOrName"], _containers.ContainerRestartAsync),
+            T("container_kill", "Kill a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["signal"] = StringSchema("Signal to send, for example SIGKILL or SIGTERM.") }, ["idOrName"], _containers.ContainerKillAsync),
             T("container_remove", "Remove a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["force"] = BoolSchema(), ["volumes"] = BoolSchema() }, ["idOrName"], _containers.ContainerRemoveAsync),
             T("container_logs", "Read container logs.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["tail"] = StringSchema("Number of lines or all."), ["since"] = StringSchema("Timestamp or duration accepted by the runtime."), ["timestamps"] = BoolSchema(), ["maxBytes"] = IntSchema() }, ["idOrName"], _containers.ContainerLogsAsync),
             T("volume_list", "List container volumes.", new JsonObject(), null, _volumes.VolumeListAsync),
@@ -204,6 +230,24 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
                         new JsonObject { ["type"] = "integer" })
                 }
             })
+    };
+
+    private static JsonObject HealthcheckSchema() => new()
+    {
+        ["type"] = "object",
+        ["properties"] = new JsonObject
+        {
+            ["test"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["items"] = new JsonObject { ["type"] = "string" }
+            },
+            ["intervalNanoseconds"] = IntSchema(),
+            ["timeoutNanoseconds"] = IntSchema(),
+            ["startPeriodNanoseconds"] = IntSchema(),
+            ["retries"] = IntSchema()
+        },
+        ["additionalProperties"] = false
     };
 }
 

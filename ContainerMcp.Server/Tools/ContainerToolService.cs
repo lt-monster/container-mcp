@@ -39,11 +39,10 @@ internal sealed class ContainerToolService
     {
         var image = ToolArgumentReader.RequireString(args, "image");
         var name = ToolArgumentReader.OptionalString(args, "name");
+        var platform = ToolArgumentReader.OptionalString(args, "platform");
         var engine = await _runtime.ResolveAsync(args, cancellationToken);
         var body = _createRequestBuilder.Build(args, image);
-        var path = string.IsNullOrWhiteSpace(name)
-            ? "/containers/create"
-            : "/containers/create?name=" + Uri.EscapeDataString(name);
+        var path = ContainerCreateRequestBuilder.BuildCreatePath(name, platform);
         var result = await _api.PostAsync(engine, path, body, cancellationToken);
         return RuntimeToolSupport.Success(engine, result);
     }
@@ -56,15 +55,114 @@ internal sealed class ContainerToolService
         return RuntimeToolSupport.Success(engine, result);
     }
 
+    public async Task<JsonObject> ContainerPauseAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildPausePath(id), null, cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerUnpauseAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildUnpausePath(id), null, cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerRenameAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var name = ToolArgumentReader.RequireString(args, "name");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildRenamePath(id, name), null, cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerExecCreateAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerExecRequestBuilder.BuildCreatePath(id), ContainerExecRequestBuilder.BuildCreateBody(args), cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerExecStartAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var execId = ToolArgumentReader.RequireString(args, "execId");
+        var tty = ToolArgumentReader.OptionalBool(args, "tty");
+        var maxBytes = ContainerExecRequestBuilder.NormalizeMaxBytes(ToolArgumentReader.OptionalInt(args, "maxBytes"));
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var bytes = await _api.PostBytesAsync(
+            engine,
+            ContainerExecRequestBuilder.BuildStartPath(execId),
+            ContainerExecRequestBuilder.BuildStartBody(tty),
+            maxBytes + 8192,
+            cancellationToken);
+        var result = DockerRawStreamDecoder.Decode(bytes, maxBytes);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerStatsAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.GetAsync(engine, ContainerToolRequests.BuildStatsPath(id), cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerTopAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var psArgs = ToolArgumentReader.OptionalString(args, "psArgs");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.GetAsync(engine, ContainerToolRequests.BuildTopPath(id, psArgs), cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerWaitAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var condition = ToolArgumentReader.OptionalString(args, "condition");
+        var timeout = ContainerToolRequests.NormalizeWaitTimeout(ToolArgumentReader.OptionalInt(args, "timeoutSeconds"));
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        using var timeoutSource = timeout is null
+            ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (timeoutSource is not null)
+        {
+            timeoutSource.CancelAfter(timeout.GetValueOrDefault());
+        }
+
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildWaitPath(id, condition), null, timeoutSource?.Token ?? cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
     public async Task<JsonObject> ContainerStopAsync(JsonElement args, CancellationToken cancellationToken)
     {
         var id = ToolArgumentReader.RequireString(args, "idOrName");
         var timeout = ToolArgumentReader.OptionalInt(args, "timeoutSeconds");
         var engine = await _runtime.ResolveAsync(args, cancellationToken);
-        var path = timeout is null
-            ? $"/containers/{Uri.EscapeDataString(id)}/stop"
-            : $"/containers/{Uri.EscapeDataString(id)}/stop?t={timeout.Value}";
-        var result = await _api.PostAsync(engine, path, null, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildStopPath(id, timeout), null, cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerRestartAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var timeout = ToolArgumentReader.OptionalInt(args, "timeoutSeconds");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildRestartPath(id, timeout), null, cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerKillAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var signal = ToolArgumentReader.OptionalString(args, "signal");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildKillPath(id, signal), null, cancellationToken);
         return RuntimeToolSupport.Success(engine, result);
     }
 
