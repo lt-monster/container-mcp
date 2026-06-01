@@ -68,6 +68,15 @@ internal sealed class ContainerToolService
         return RuntimeToolSupport.Success(engine, result);
     }
 
+    public async Task<JsonObject> ContainerRestartAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var timeout = ToolArgumentReader.OptionalInt(args, "timeoutSeconds");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildRestartPath(id, timeout), null, cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
     public async Task<JsonObject> ContainerRemoveAsync(JsonElement args, CancellationToken cancellationToken)
     {
         var id = ToolArgumentReader.RequireString(args, "idOrName");

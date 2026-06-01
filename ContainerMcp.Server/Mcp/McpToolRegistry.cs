@@ -105,6 +105,7 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
             }, ["image"], _containers.ContainerCreateAsync),
             T("container_start", "Start a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name.") }, ["idOrName"], _containers.ContainerStartAsync),
             T("container_stop", "Stop a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["timeoutSeconds"] = IntSchema() }, ["idOrName"], _containers.ContainerStopAsync),
+            T("container_restart", "Restart a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["timeoutSeconds"] = IntSchema() }, ["idOrName"], _containers.ContainerRestartAsync),
             T("container_remove", "Remove a container.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["force"] = BoolSchema(), ["volumes"] = BoolSchema() }, ["idOrName"], _containers.ContainerRemoveAsync),
             T("container_logs", "Read container logs.", new JsonObject { ["idOrName"] = StringSchema("Container ID or name."), ["tail"] = StringSchema("Number of lines or all."), ["since"] = StringSchema("Timestamp or duration accepted by the runtime."), ["timestamps"] = BoolSchema(), ["maxBytes"] = IntSchema() }, ["idOrName"], _containers.ContainerLogsAsync),
             T("volume_list", "List container volumes.", new JsonObject(), null, _volumes.VolumeListAsync),

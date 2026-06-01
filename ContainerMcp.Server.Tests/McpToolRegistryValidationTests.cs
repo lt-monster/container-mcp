@@ -28,6 +28,17 @@ public sealed class McpToolRegistryValidationTests
     }
 
     [Theory]
+    [InlineData("container_restart")]
+    public void List_IncludesContainerManagementTool(string toolName)
+    {
+        var registry = CreateRegistry();
+
+        var tools = registry.List();
+
+        Assert.Contains(tools, tool => tool!["name"]!.GetValue<string>() == toolName);
+    }
+
+    [Theory]
     [InlineData("image_list", """{"unexpected":true}""", "Unknown argument 'unexpected'.")]
     [InlineData("image_pull", """{}""", "Missing required argument 'image'.")]
     [InlineData("image_remove", """{"imageIdOrName":"nginx","force":"true"}""", "Argument 'force' must be a boolean.")]
@@ -39,6 +50,8 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("image_load", """{"quiet":"false"}""", "Missing required argument 'tarPath'.")]
     [InlineData("image_save", """{"image":"nginx"}""", "Missing required argument 'outputPath'.")]
     [InlineData("container_list", """{"engine":"invalid"}""", "Argument 'engine' must be one of: auto, docker, podman.")]
+    [InlineData("container_restart", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("container_restart", """{"idOrName":"web","timeoutSeconds":"10"}""", "Argument 'timeoutSeconds' must be an integer.")]
     [InlineData("container_create", """{"image":"nginx","command":{"bad":true}}""", "Argument 'command' does not match any allowed schema.")]
     [InlineData("volume_create", """{"name":"cache","labels":{"ttl":30}}""", "Argument 'labels.ttl' must be a string.")]
     public async Task CallAsync_RejectsInvalidArgumentsBeforeHandlerRuns(string toolName, string json, string expectedMessage)
