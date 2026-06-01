@@ -23,6 +23,46 @@ public sealed class ContainerToolRequestTests
     }
 
     [Fact]
+    public void BuildStatsPath_UsesStreamFalse()
+    {
+        Assert.Equal("/containers/web%2Fapi/stats?stream=false", ContainerToolRequests.BuildStatsPath("web/api"));
+    }
+
+    [Fact]
+    public void BuildTopPath_MapsOptionalPsArgs()
+    {
+        Assert.Equal("/containers/web%2Fapi/top", ContainerToolRequests.BuildTopPath("web/api", null));
+        Assert.Equal("/containers/web/top?ps_args=-ef%20wide", ContainerToolRequests.BuildTopPath("web", "-ef wide"));
+    }
+
+    [Theory]
+    [InlineData(null, "/containers/web%2Fapi/wait?condition=not-running")]
+    [InlineData("next-exit", "/containers/web%2Fapi/wait?condition=next-exit")]
+    [InlineData("removed", "/containers/web%2Fapi/wait?condition=removed")]
+    public void BuildWaitPath_MapsCondition(string? condition, string expected)
+    {
+        Assert.Equal(expected, ContainerToolRequests.BuildWaitPath("web/api", condition));
+    }
+
+    [Fact]
+    public void BuildWaitPath_RejectsUnsupportedCondition()
+    {
+        var exception = Assert.Throws<ContainerMcp.Models.ContainerMcpException>(
+            () => ContainerToolRequests.BuildWaitPath("web", "running"));
+
+        Assert.Equal("Argument 'condition' must be one of: not-running, next-exit, removed.", exception.Message);
+    }
+
+    [Fact]
+    public void NormalizeWaitTimeout_RejectsNegativeTimeout()
+    {
+        var exception = Assert.Throws<ContainerMcp.Models.ContainerMcpException>(
+            () => ContainerToolRequests.NormalizeWaitTimeout(-1));
+
+        Assert.Equal("Argument 'timeoutSeconds' must be greater than or equal to 0.", exception.Message);
+    }
+
+    [Fact]
     public void BuildStopPath_RejectsNegativeTimeout()
     {
         var exception = Assert.Throws<ContainerMcp.Models.ContainerMcpException>(

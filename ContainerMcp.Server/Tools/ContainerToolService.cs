@@ -105,6 +105,41 @@ internal sealed class ContainerToolService
         return RuntimeToolSupport.Success(engine, result);
     }
 
+    public async Task<JsonObject> ContainerStatsAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.GetAsync(engine, ContainerToolRequests.BuildStatsPath(id), cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerTopAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var psArgs = ToolArgumentReader.OptionalString(args, "psArgs");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.GetAsync(engine, ContainerToolRequests.BuildTopPath(id, psArgs), cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerWaitAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var condition = ToolArgumentReader.OptionalString(args, "condition");
+        var timeout = ContainerToolRequests.NormalizeWaitTimeout(ToolArgumentReader.OptionalInt(args, "timeoutSeconds"));
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        using var timeoutSource = timeout is null
+            ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (timeoutSource is not null)
+        {
+            timeoutSource.CancelAfter(timeout.GetValueOrDefault());
+        }
+
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildWaitPath(id, condition), null, timeoutSource?.Token ?? cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
     public async Task<JsonObject> ContainerStopAsync(JsonElement args, CancellationToken cancellationToken)
     {
         var id = ToolArgumentReader.RequireString(args, "idOrName");

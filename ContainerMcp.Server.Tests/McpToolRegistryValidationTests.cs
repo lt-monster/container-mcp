@@ -35,6 +35,9 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_rename")]
     [InlineData("container_exec_create")]
     [InlineData("container_exec_start")]
+    [InlineData("container_stats")]
+    [InlineData("container_top")]
+    [InlineData("container_wait")]
     public void List_IncludesContainerManagementTool(string toolName)
     {
         var registry = CreateRegistry();
@@ -72,6 +75,12 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_exec_start", """{}""", "Missing required argument 'execId'.")]
     [InlineData("container_exec_start", """{"execId":"abc","maxBytes":"1024"}""", "Argument 'maxBytes' must be an integer.")]
     [InlineData("container_exec_start", """{"execId":"abc","tty":"true"}""", "Argument 'tty' must be a boolean.")]
+    [InlineData("container_stats", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("container_top", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("container_top", """{"idOrName":"web","psArgs":true}""", "Argument 'psArgs' must be a string.")]
+    [InlineData("container_wait", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("container_wait", """{"idOrName":"web","condition":"running"}""", "Argument 'condition' must be one of: not-running, next-exit, removed.")]
+    [InlineData("container_wait", """{"idOrName":"web","timeoutSeconds":"10"}""", "Argument 'timeoutSeconds' must be an integer.")]
     [InlineData("container_create", """{"image":"nginx","command":{"bad":true}}""", "Argument 'command' does not match any allowed schema.")]
     [InlineData("volume_create", """{"name":"cache","labels":{"ttl":30}}""", "Argument 'labels.ttl' must be a string.")]
     public async Task CallAsync_RejectsInvalidArgumentsBeforeHandlerRuns(string toolName, string json, string expectedMessage)

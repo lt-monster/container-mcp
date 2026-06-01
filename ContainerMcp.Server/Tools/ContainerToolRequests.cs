@@ -2,6 +2,8 @@ namespace ContainerMcp.Tools;
 
 internal static class ContainerToolRequests
 {
+    private static readonly string[] WaitConditions = ["not-running", "next-exit", "removed"];
+
     public static string BuildPausePath(string idOrName) =>
         $"/containers/{Uri.EscapeDataString(idOrName)}/pause";
 
@@ -10,6 +12,41 @@ internal static class ContainerToolRequests
 
     public static string BuildRenamePath(string idOrName, string name) =>
         $"/containers/{Uri.EscapeDataString(idOrName)}/rename?name={Uri.EscapeDataString(name)}";
+
+    public static string BuildStatsPath(string idOrName) =>
+        $"/containers/{Uri.EscapeDataString(idOrName)}/stats?stream=false";
+
+    public static string BuildTopPath(string idOrName, string? psArgs)
+    {
+        var path = $"/containers/{Uri.EscapeDataString(idOrName)}/top";
+        return string.IsNullOrWhiteSpace(psArgs) ? path : path + "?ps_args=" + Uri.EscapeDataString(psArgs);
+    }
+
+    public static string BuildWaitPath(string idOrName, string? condition)
+    {
+        condition = string.IsNullOrWhiteSpace(condition) ? "not-running" : condition;
+        if (!WaitConditions.Contains(condition, StringComparer.Ordinal))
+        {
+            throw InvalidArgument("Argument 'condition' must be one of: not-running, next-exit, removed.");
+        }
+
+        return $"/containers/{Uri.EscapeDataString(idOrName)}/wait?condition={Uri.EscapeDataString(condition)}";
+    }
+
+    public static TimeSpan? NormalizeWaitTimeout(int? timeoutSeconds)
+    {
+        if (timeoutSeconds is null)
+        {
+            return null;
+        }
+
+        if (timeoutSeconds.Value < 0)
+        {
+            throw InvalidArgument("Argument 'timeoutSeconds' must be greater than or equal to 0.");
+        }
+
+        return TimeSpan.FromSeconds(timeoutSeconds.Value);
+    }
 
     public static string BuildStopPath(string idOrName, int? timeoutSeconds)
     {
@@ -41,4 +78,7 @@ internal static class ContainerToolRequests
 
         return timeoutSeconds;
     }
+
+    private static ContainerMcp.Models.ContainerMcpException InvalidArgument(string message) =>
+        new(ContainerMcp.Models.McpErrorCode.InvalidArgument, message, StatusCodes.Status400BadRequest);
 }
