@@ -64,6 +64,34 @@ internal sealed class ContainerApiAdapter
         }
     }
 
+    public async Task<byte[]> PostBytesAsync(ResolvedEngine engine, string path, JsonNode? body, int maxBytes, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await SendBytesCoreAsync(engine, HttpMethod.Post, path, body, maxBytes, cancellationToken).WaitAsync(_options.ApiTimeout, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw Timeout(engine);
+        }
+        catch (TimeoutException)
+        {
+            throw Timeout(engine);
+        }
+        catch (IOException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (SocketException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+    }
+
     public async Task<JsonObject> GetToFileAsync(ResolvedEngine engine, string path, string outputPath, long maxBytes, CancellationToken cancellationToken)
     {
         try
@@ -201,6 +229,26 @@ internal sealed class ContainerApiAdapter
         }
 
         return body;
+    }
+
+    private async Task<byte[]> SendBytesCoreAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, int maxBytes, CancellationToken cancellationToken)
+    {
+        var client = _factory.GetClient(engine.Endpoint);
+        using var request = new HttpRequestMessage(method, path);
+        if (body is not null)
+        {
+            request.Content = new StringContent(body.ToCompactJson(), Encoding.UTF8, "application/json");
+        }
+
+        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var responseBody = await ReadAtMostAsync(stream, maxBytes, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            ThrowRuntimeError(engine, path, response.StatusCode, Encoding.UTF8.GetString(responseBody));
+        }
+
+        return responseBody;
     }
 
     private async Task<JsonObject> GetToFileCoreAsync(ResolvedEngine engine, string path, string outputPath, long maxBytes, CancellationToken cancellationToken)

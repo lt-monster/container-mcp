@@ -81,6 +81,30 @@ internal sealed class ContainerToolService
         return RuntimeToolSupport.Success(engine, result);
     }
 
+    public async Task<JsonObject> ContainerExecCreateAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerExecRequestBuilder.BuildCreatePath(id), ContainerExecRequestBuilder.BuildCreateBody(args), cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerExecStartAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var execId = ToolArgumentReader.RequireString(args, "execId");
+        var tty = ToolArgumentReader.OptionalBool(args, "tty");
+        var maxBytes = ContainerExecRequestBuilder.NormalizeMaxBytes(ToolArgumentReader.OptionalInt(args, "maxBytes"));
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var bytes = await _api.PostBytesAsync(
+            engine,
+            ContainerExecRequestBuilder.BuildStartPath(execId),
+            ContainerExecRequestBuilder.BuildStartBody(tty),
+            maxBytes + 8192,
+            cancellationToken);
+        var result = DockerRawStreamDecoder.Decode(bytes, maxBytes);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
     public async Task<JsonObject> ContainerStopAsync(JsonElement args, CancellationToken cancellationToken)
     {
         var id = ToolArgumentReader.RequireString(args, "idOrName");

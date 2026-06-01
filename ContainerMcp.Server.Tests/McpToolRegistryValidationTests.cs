@@ -33,6 +33,8 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_pause")]
     [InlineData("container_unpause")]
     [InlineData("container_rename")]
+    [InlineData("container_exec_create")]
+    [InlineData("container_exec_start")]
     public void List_IncludesContainerManagementTool(string toolName)
     {
         var registry = CreateRegistry();
@@ -63,6 +65,13 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_unpause", """{}""", "Missing required argument 'idOrName'.")]
     [InlineData("container_rename", """{}""", "Missing required argument 'idOrName'.")]
     [InlineData("container_rename", """{"idOrName":"web"}""", "Missing required argument 'name'.")]
+    [InlineData("container_exec_create", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("container_exec_create", """{"idOrName":"web"}""", "Missing required argument 'command'.")]
+    [InlineData("container_exec_create", """{"idOrName":"web","command":{"bad":true}}""", "Argument 'command' does not match any allowed schema.")]
+    [InlineData("container_exec_create", """{"idOrName":"web","command":"date","tty":"true"}""", "Argument 'tty' must be a boolean.")]
+    [InlineData("container_exec_start", """{}""", "Missing required argument 'execId'.")]
+    [InlineData("container_exec_start", """{"execId":"abc","maxBytes":"1024"}""", "Argument 'maxBytes' must be an integer.")]
+    [InlineData("container_exec_start", """{"execId":"abc","tty":"true"}""", "Argument 'tty' must be a boolean.")]
     [InlineData("container_create", """{"image":"nginx","command":{"bad":true}}""", "Argument 'command' does not match any allowed schema.")]
     [InlineData("volume_create", """{"name":"cache","labels":{"ttl":30}}""", "Argument 'labels.ttl' must be a string.")]
     public async Task CallAsync_RejectsInvalidArgumentsBeforeHandlerRuns(string toolName, string json, string expectedMessage)
