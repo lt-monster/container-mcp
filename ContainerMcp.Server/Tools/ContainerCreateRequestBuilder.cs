@@ -6,6 +6,8 @@ namespace ContainerMcp.Tools;
 
 internal sealed class ContainerCreateRequestBuilder
 {
+    private static readonly string[] RestartPolicies = ["no", "always", "unless-stopped", "on-failure"];
+
     private readonly VolumePolicy _volumePolicy;
 
     public ContainerCreateRequestBuilder(VolumePolicy volumePolicy) => _volumePolicy = volumePolicy;
@@ -39,7 +41,7 @@ internal sealed class ContainerCreateRequestBuilder
         var hostConfig = new JsonObject();
         if (ToolArgumentReader.OptionalString(args, "restartPolicy") is { } restartPolicy)
         {
-            hostConfig["RestartPolicy"] = new JsonObject { ["Name"] = restartPolicy };
+            hostConfig["RestartPolicy"] = new JsonObject { ["Name"] = ValidateRestartPolicy(restartPolicy) };
         }
 
         var volumes = _volumePolicy.ValidateContainerCreateVolumes(ToolArgumentReader.OptionalStringArray(args, "volumes"));
@@ -88,11 +90,11 @@ internal sealed class ContainerCreateRequestBuilder
         {
             foreach (var property in ports.EnumerateObject())
             {
-                var containerPort = NormalizeContainerPort(property.Name);
+                var containerPort = NormalizeContainerPort(property.Name, property.Name);
                 var hostPort = property.Value.ValueKind == JsonValueKind.Number
                     ? property.Value.GetInt32().ToString(CultureInfo.InvariantCulture)
                     : property.Value.GetString();
-                result[containerPort] = JsonNodeExtensions.Array(new JsonObject { ["HostPort"] = hostPort });
+                result[containerPort] = JsonNodeExtensions.Array(new JsonObject { ["HostPort"] = ValidateHostPort(hostPort ?? string.Empty) });
             }
         }
 
@@ -115,23 +117,27 @@ internal sealed class ContainerCreateRequestBuilder
         var parts = value.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 1)
         {
-            var port = NormalizeContainerPort(parts[0]);
+            var port = NormalizeContainerPort(parts[0], value);
             result[port] = JsonNodeExtensions.Array(new JsonObject());
             return;
         }
 
         if (parts.Length == 2)
         {
-            var containerPort = NormalizeContainerPort(parts[1]);
-            result[containerPort] = JsonNodeExtensions.Array(new JsonObject { ["HostPort"] = parts[0] });
+            var containerPort = NormalizeContainerPort(parts[1], value);
+            result[containerPort] = JsonNodeExtensions.Array(new JsonObject { ["HostPort"] = ValidateHostPort(parts[0]) });
             return;
         }
 
         if (parts.Length == 3)
         {
-            var containerPort = NormalizeContainerPort(parts[2]);
-            result[containerPort] = JsonNodeExtensions.Array(new JsonObject { ["HostIp"] = parts[0], ["HostPort"] = parts[1] });
+            var containerPort = NormalizeContainerPort(parts[2], value);
+            result[containerPort] = JsonNodeExtensions.Array(new JsonObject { ["HostIp"] = parts[0], ["HostPort"] = ValidateHostPort(parts[1]) });
+            return;
         }
+
+        throw InvalidArgument(
+            $"Invalid port mapping '{value}'. Expected containerPort[/protocol], hostPort:containerPort[/protocol], or hostIp:hostPort:containerPort[/protocol].");
     }
 
     private static JsonArray StringArrayNode(IEnumerable<string> values)
@@ -145,6 +151,54 @@ internal sealed class ContainerCreateRequestBuilder
         return array;
     }
 
-    private static string NormalizeContainerPort(string value) =>
-        value.Contains('/', StringComparison.Ordinal) ? value : $"{value}/tcp";
+    private static string NormalizeContainerPort(string value, string mapping)
+    {
+        var pieces = value.Split('/', StringSplitOptions.TrimEntries);
+        if (pieces.Length > 2)
+        {
+            throw InvalidPortMapping(mapping);
+        }
+
+        if (!IsPort(pieces[0]))
+        {
+            throw InvalidPortMapping(mapping);
+        }
+
+        var protocol = pieces.Length == 2 ? pieces[1] : "tcp";
+        if (!protocol.Equals("tcp", StringComparison.Ordinal) && !protocol.Equals("udp", StringComparison.Ordinal))
+        {
+            throw InvalidArgument($"Invalid port mapping '{mapping}'. Protocol must be tcp or udp.");
+        }
+
+        return $"{pieces[0]}/{protocol}";
+    }
+
+    private static string ValidateHostPort(string value)
+    {
+        if (!IsPort(value))
+        {
+            throw InvalidArgument($"Invalid host port '{value}'. Host port must be between 1 and 65535.");
+        }
+
+        return value;
+    }
+
+    private static string ValidateRestartPolicy(string value)
+    {
+        if (!RestartPolicies.Contains(value, StringComparer.Ordinal))
+        {
+            throw InvalidArgument("Argument 'restartPolicy' must be one of: no, always, unless-stopped, on-failure.");
+        }
+
+        return value;
+    }
+
+    private static bool IsPort(string value) =>
+        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var port) && port is >= 1 and <= 65535;
+
+    private static ContainerMcpException InvalidPortMapping(string mapping) =>
+        InvalidArgument($"Invalid port mapping '{mapping}'. Container port must be between 1 and 65535.");
+
+    private static ContainerMcpException InvalidArgument(string message) =>
+        new(McpErrorCode.InvalidArgument, message, StatusCodes.Status400BadRequest);
 }

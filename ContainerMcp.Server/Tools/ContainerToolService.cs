@@ -61,10 +61,7 @@ internal sealed class ContainerToolService
         var id = ToolArgumentReader.RequireString(args, "idOrName");
         var timeout = ToolArgumentReader.OptionalInt(args, "timeoutSeconds");
         var engine = await _runtime.ResolveAsync(args, cancellationToken);
-        var path = timeout is null
-            ? $"/containers/{Uri.EscapeDataString(id)}/stop"
-            : $"/containers/{Uri.EscapeDataString(id)}/stop?t={timeout.Value}";
-        var result = await _api.PostAsync(engine, path, null, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildStopPath(id, timeout), null, cancellationToken);
         return RuntimeToolSupport.Success(engine, result);
     }
 
@@ -74,6 +71,15 @@ internal sealed class ContainerToolService
         var timeout = ToolArgumentReader.OptionalInt(args, "timeoutSeconds");
         var engine = await _runtime.ResolveAsync(args, cancellationToken);
         var result = await _api.PostAsync(engine, ContainerToolRequests.BuildRestartPath(id, timeout), null, cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> ContainerKillAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var signal = ToolArgumentReader.OptionalString(args, "signal");
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildKillPath(id, signal), null, cancellationToken);
         return RuntimeToolSupport.Success(engine, result);
     }
 
