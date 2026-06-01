@@ -100,6 +100,22 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
                 ["env"] = ObjectMapSchema(),
                 ["volumes"] = StringArraySchema("Named volume mounts using source:target[:mode]. Bind mounts are rejected in v1."),
                 ["command"] = CommandSchema(),
+                ["workingDir"] = StringSchema("Working directory inside the container."),
+                ["user"] = StringSchema("User to run as inside the container."),
+                ["hostname"] = StringSchema("Container hostname."),
+                ["networkMode"] = StringSchema("Container network mode."),
+                ["platform"] = StringSchema("Platform, for example linux/amd64."),
+                ["tty"] = BoolSchema(),
+                ["entrypoint"] = CommandSchema(),
+                ["memoryBytes"] = IntSchema(),
+                ["memorySwapBytes"] = IntSchema(),
+                ["memoryReservationBytes"] = IntSchema(),
+                ["cpuShares"] = IntSchema(),
+                ["cpuQuota"] = IntSchema(),
+                ["cpuPeriod"] = IntSchema(),
+                ["nanoCpus"] = IntSchema(),
+                ["pidsLimit"] = IntSchema(),
+                ["healthcheck"] = HealthcheckSchema(),
                 ["restartPolicy"] = StringSchema("Restart policy name."),
                 ["labels"] = ObjectMapSchema()
             }, ["image"], _containers.ContainerCreateAsync),
@@ -214,6 +230,24 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
                         new JsonObject { ["type"] = "integer" })
                 }
             })
+    };
+
+    private static JsonObject HealthcheckSchema() => new()
+    {
+        ["type"] = "object",
+        ["properties"] = new JsonObject
+        {
+            ["test"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["items"] = new JsonObject { ["type"] = "string" }
+            },
+            ["intervalNanoseconds"] = IntSchema(),
+            ["timeoutNanoseconds"] = IntSchema(),
+            ["startPeriodNanoseconds"] = IntSchema(),
+            ["retries"] = IntSchema()
+        },
+        ["additionalProperties"] = false
     };
 }
 

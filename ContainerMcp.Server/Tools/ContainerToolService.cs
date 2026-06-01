@@ -39,11 +39,10 @@ internal sealed class ContainerToolService
     {
         var image = ToolArgumentReader.RequireString(args, "image");
         var name = ToolArgumentReader.OptionalString(args, "name");
+        var platform = ToolArgumentReader.OptionalString(args, "platform");
         var engine = await _runtime.ResolveAsync(args, cancellationToken);
         var body = _createRequestBuilder.Build(args, image);
-        var path = string.IsNullOrWhiteSpace(name)
-            ? "/containers/create"
-            : "/containers/create?name=" + Uri.EscapeDataString(name);
+        var path = ContainerCreateRequestBuilder.BuildCreatePath(name, platform);
         var result = await _api.PostAsync(engine, path, body, cancellationToken);
         return RuntimeToolSupport.Success(engine, result);
     }

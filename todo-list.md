@@ -28,7 +28,7 @@
 - [x] **3.7** 新增 `container_top`。（后续实现）
 - [x] **3.8** 新增 `container_wait`，并明确 timeout 行为。（后续实现）
 - [ ] **3.9** 新增 `container_prune`。（后续实现）
-- [ ] **3.10** 扩展 `container_create` 参数：working directory、user、hostname、network mode、resource limits、platform、TTY、entrypoint、healthcheck。（后续实现）
+- [x] **3.10** 扩展 `container_create` 参数：working directory、user、hostname、network mode、resource limits、platform、TTY、entrypoint、healthcheck。（后续实现）
 - [x] **3.11** 为容器端口映射增加校验，不再静默忽略格式错误的条目。（现在实现）
 - [x] **3.12** 为 restart policy 名称和 timeout 参数增加校验。（现在实现）
 

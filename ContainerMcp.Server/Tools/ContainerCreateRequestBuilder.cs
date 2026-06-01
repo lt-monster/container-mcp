@@ -12,12 +12,33 @@ internal sealed class ContainerCreateRequestBuilder
 
     public ContainerCreateRequestBuilder(VolumePolicy volumePolicy) => _volumePolicy = volumePolicy;
 
+    public static string BuildCreatePath(string? name, string? platform)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            query.Add("name=" + Uri.EscapeDataString(name));
+        }
+
+        if (!string.IsNullOrWhiteSpace(platform))
+        {
+            query.Add("platform=" + Uri.EscapeDataString(platform));
+        }
+
+        return query.Count == 0 ? "/containers/create" : "/containers/create?" + string.Join('&', query);
+    }
+
     public JsonObject Build(JsonElement args, string image)
     {
         var body = new JsonObject
         {
             ["Image"] = image
         };
+
+        AddOptionalString(body, "WorkingDir", args, "workingDir");
+        AddOptionalString(body, "User", args, "user");
+        AddOptionalString(body, "Hostname", args, "hostname");
+        AddOptionalBool(body, "Tty", args, "tty");
 
         if (ToolArgumentReader.OptionalStringArray(args, "command") is { Length: > 0 } command)
         {
@@ -38,7 +59,27 @@ internal sealed class ContainerCreateRequestBuilder
             body["Labels"] = JsonNodeExtensions.StringMapNode(labels);
         }
 
+        if (ToolArgumentReader.OptionalStringArray(args, "entrypoint") is { Length: > 0 } entrypoint)
+        {
+            body["Entrypoint"] = StringArrayNode(entrypoint);
+        }
+
+        if (BuildHealthcheck(args) is { } healthcheck)
+        {
+            body["Healthcheck"] = healthcheck;
+        }
+
         var hostConfig = new JsonObject();
+        AddOptionalString(hostConfig, "NetworkMode", args, "networkMode");
+        AddOptionalNonNegativeLong(hostConfig, "Memory", args, "memoryBytes", allowMinusOne: false);
+        AddOptionalNonNegativeLong(hostConfig, "MemorySwap", args, "memorySwapBytes", allowMinusOne: true);
+        AddOptionalNonNegativeLong(hostConfig, "MemoryReservation", args, "memoryReservationBytes", allowMinusOne: false);
+        AddOptionalNonNegativeInt(hostConfig, "CpuShares", args, "cpuShares");
+        AddOptionalNonNegativeInt(hostConfig, "CpuQuota", args, "cpuQuota");
+        AddOptionalNonNegativeInt(hostConfig, "CpuPeriod", args, "cpuPeriod");
+        AddOptionalNonNegativeLong(hostConfig, "NanoCpus", args, "nanoCpus", allowMinusOne: false);
+        AddOptionalNonNegativeLong(hostConfig, "PidsLimit", args, "pidsLimit", allowMinusOne: true);
+
         if (ToolArgumentReader.OptionalString(args, "restartPolicy") is { } restartPolicy)
         {
             hostConfig["RestartPolicy"] = new JsonObject { ["Name"] = ValidateRestartPolicy(restartPolicy) };
@@ -63,6 +104,27 @@ internal sealed class ContainerCreateRequestBuilder
         }
 
         return body;
+    }
+
+    private static JsonObject? BuildHealthcheck(JsonElement args)
+    {
+        if (!args.TryGetProperty("healthcheck", out var healthcheck) || healthcheck.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        var result = new JsonObject();
+        if (ToolArgumentReader.OptionalStringArray(healthcheck, "test") is { Length: > 0 } test)
+        {
+            result["Test"] = StringArrayNode(test);
+        }
+
+        AddOptionalHealthcheckDuration(result, "Interval", healthcheck, "intervalNanoseconds");
+        AddOptionalHealthcheckDuration(result, "Timeout", healthcheck, "timeoutNanoseconds");
+        AddOptionalHealthcheckDuration(result, "StartPeriod", healthcheck, "startPeriodNanoseconds");
+        AddOptionalNonNegativeInt(result, "Retries", healthcheck, "retries", pathPrefix: "healthcheck.");
+
+        return result.Count == 0 ? null : result;
     }
 
     private static JsonObject BuildPortBindings(JsonElement args)
@@ -149,6 +211,70 @@ internal sealed class ContainerCreateRequestBuilder
         }
 
         return array;
+    }
+
+    private static void AddOptionalString(JsonObject target, string dockerName, JsonElement args, string argumentName)
+    {
+        if (ToolArgumentReader.OptionalString(args, argumentName) is { } value)
+        {
+            target[dockerName] = value;
+        }
+    }
+
+    private static void AddOptionalBool(JsonObject target, string dockerName, JsonElement args, string argumentName)
+    {
+        if (args.TryGetProperty(argumentName, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            target[dockerName] = value.GetBoolean();
+        }
+    }
+
+    private static void AddOptionalNonNegativeInt(JsonObject target, string dockerName, JsonElement args, string argumentName, string pathPrefix = "")
+    {
+        var value = ToolArgumentReader.OptionalInt(args, argumentName);
+        if (value is null)
+        {
+            return;
+        }
+
+        if (value.Value < 0)
+        {
+            throw InvalidArgument($"Argument '{pathPrefix}{argumentName}' must be greater than or equal to 0.");
+        }
+
+        target[dockerName] = value.Value;
+    }
+
+    private static void AddOptionalNonNegativeLong(JsonObject target, string dockerName, JsonElement args, string argumentName, bool allowMinusOne)
+    {
+        var value = ToolArgumentReader.OptionalLong(args, argumentName);
+        if (value is null)
+        {
+            return;
+        }
+
+        if (value.Value < 0 && !(allowMinusOne && value.Value == -1))
+        {
+            throw InvalidArgument($"Argument '{argumentName}' must be greater than or equal to 0.");
+        }
+
+        target[dockerName] = value.Value;
+    }
+
+    private static void AddOptionalHealthcheckDuration(JsonObject target, string dockerName, JsonElement args, string argumentName)
+    {
+        var value = ToolArgumentReader.OptionalLong(args, argumentName);
+        if (value is null)
+        {
+            return;
+        }
+
+        if (value.Value != 0 && value.Value < 1_000_000)
+        {
+            throw InvalidArgument($"Argument 'healthcheck.{argumentName}' must be 0 or at least 1000000.");
+        }
+
+        target[dockerName] = value.Value;
     }
 
     private static string NormalizeContainerPort(string value, string mapping)

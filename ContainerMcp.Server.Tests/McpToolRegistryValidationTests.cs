@@ -82,6 +82,11 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_wait", """{"idOrName":"web","condition":"running"}""", "Argument 'condition' must be one of: not-running, next-exit, removed.")]
     [InlineData("container_wait", """{"idOrName":"web","timeoutSeconds":"10"}""", "Argument 'timeoutSeconds' must be an integer.")]
     [InlineData("container_create", """{"image":"nginx","command":{"bad":true}}""", "Argument 'command' does not match any allowed schema.")]
+    [InlineData("container_create", """{"image":"nginx","tty":"true"}""", "Argument 'tty' must be a boolean.")]
+    [InlineData("container_create", """{"image":"nginx","entrypoint":{"bad":true}}""", "Argument 'entrypoint' does not match any allowed schema.")]
+    [InlineData("container_create", """{"image":"nginx","healthcheck":{"test":"CMD"}}""", "Argument 'healthcheck.test' must be an array.")]
+    [InlineData("container_create", """{"image":"nginx","healthcheck":{"unexpected":true}}""", "Unknown argument 'healthcheck.unexpected'.")]
+    [InlineData("container_create", """{"image":"nginx","memoryBytes":"1024"}""", "Argument 'memoryBytes' must be an integer.")]
     [InlineData("volume_create", """{"name":"cache","labels":{"ttl":30}}""", "Argument 'labels.ttl' must be a string.")]
     public async Task CallAsync_RejectsInvalidArgumentsBeforeHandlerRuns(string toolName, string json, string expectedMessage)
     {
