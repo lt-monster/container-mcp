@@ -60,7 +60,17 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `container_inspect` | 查看容器详情。 |
 | `container_create` | 创建容器。 |
 | `container_start` | 启动容器。 |
+| `container_pause` | 暂停运行中的容器。 |
+| `container_unpause` | 恢复暂停的容器。 |
+| `container_rename` | 重命名容器。 |
+| `container_exec_create` | 在容器中创建 exec 实例。 |
+| `container_exec_start` | 启动 exec 实例并读取有界输出。 |
+| `container_stats` | 读取有界容器 stats 快照。 |
+| `container_top` | 列出容器内运行的进程。 |
+| `container_wait` | 等待容器条件并返回退出状态。 |
 | `container_stop` | 停止容器。 |
+| `container_restart` | 重启容器。 |
+| `container_kill` | Kill 容器。 |
 | `container_remove` | 删除容器。 |
 | `container_logs` | 读取容器日志。 |
 | `volume_list` | 列出卷。 |
@@ -73,7 +83,13 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 
 `container_create` 支持常见 Docker 创建参数，包括 `name`、`platform`、`ports`、`env`、`volumes`、`command`、`workingDir`、`user`、`hostname`、`networkMode`、`tty`、`entrypoint`、资源限制、restart policy、labels 和 healthcheck 设置。
 
-镜像构建、导入和导出工具使用本地 tar 文件路径。`image_build` 需要已有 tar 构建上下文，`image_load` 需要已有镜像 tar 归档，`image_save` 会将镜像 tar 写入本地输出路径。私有 registry 的认证方案尚未实现。
+容器生命周期工具也暴露常用运行时参数：`container_stop` 和 `container_restart` 支持 `timeoutSeconds`，`container_kill` 支持 `signal`，`container_wait` 支持 `condition`（`not-running`、`next-exit` 或 `removed`）和 `timeoutSeconds`，`container_logs` 支持 `tail`、`since`、`timestamps` 和有界 `maxBytes` 输出。
+
+镜像构建、导入和导出工具使用本地 tar 文件路径。`image_build` 需要已有 tar 构建上下文，并支持 `dockerfile`、`noCache`、`pull`、`removeIntermediate`、`forceRemoveIntermediate` 和 `maxEvents`。`image_load` 需要已有镜像 tar 归档。`image_save` 会将镜像 tar 写入绝对本地输出路径，要求父目录已存在，并支持 `maxBytes` 和 `overwrite`。私有 registry 的认证方案尚未实现。
+
+流式和二进制响应都是有界的。`container_logs` 和 `container_exec_start` 返回解码后的 `stdout`、`stderr`、`text`、`bytesRead`、`frameCount`、`truncated` 和 `framed` 字段。`image_pull`、`image_build`、`image_push`、`image_load` 等镜像进度工具返回 `events`、`eventCount`、`lastStatus`、`lastError` 和 `truncated`。
+
+`image_prune` 支持 `dangling`、`until`、`labels` 和 `labelNe` 过滤器。`port_find_free` 默认使用 `host=127.0.0.1`、`start=1024`、`end=65535`、`count=1` 和 `protocol=tcp`，并返回 `engine` 为 `none`。
 
 ## 配置
 
@@ -85,6 +101,9 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `--urls` | `CONTAINER_MCP_HTTP_URLS` 或 `ASPNETCORE_URLS` | `http://127.0.0.1:7010` |
 | `--default-engine` | `CONTAINER_MCP_DEFAULT_ENGINE` | `auto` |
 | `--default-target` | `CONTAINER_MCP_DEFAULT_TARGET` | `local` |
+| `--api-timeout-seconds` | `CONTAINER_MCP_API_TIMEOUT_SECONDS` | `10` |
+| `--api-probe-timeout-seconds` | `CONTAINER_MCP_API_PROBE_TIMEOUT_SECONDS` | `2` |
+| `--tool-timeout-seconds` | `CONTAINER_MCP_TOOL_TIMEOUT_SECONDS` | `15` |
 
 重要默认值：
 
@@ -100,6 +119,8 @@ v1 仅支持本地 target。
 - **Unix 上的 Docker：** 默认使用 `/var/run/docker.sock`，除非设置了 `DOCKER_HOST`。
 - **Unix 上的 Podman：** 从 `CONTAINER_MCP_PODMAN_HOST`、`PODMAN_HOST` 或常见 socket 路径发现 endpoint。
 - **Windows 上的 Podman：** v1 尚未实现。
+
+运行时 endpoint 环境变量支持 `unix://`、`npipe://`、`tcp://` 和 `http://` endpoint 值。
 
 ## 项目结构
 

@@ -60,7 +60,17 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `container_inspect` | Inspect a container. |
 | `container_create` | Create a container. |
 | `container_start` | Start a container. |
+| `container_pause` | Pause a running container. |
+| `container_unpause` | Unpause a paused container. |
+| `container_rename` | Rename a container. |
+| `container_exec_create` | Create an exec instance in a container. |
+| `container_exec_start` | Start an exec instance and read bounded output. |
+| `container_stats` | Read a bounded container stats snapshot. |
+| `container_top` | List processes running in a container. |
+| `container_wait` | Wait for a container condition and return its exit status. |
 | `container_stop` | Stop a container. |
+| `container_restart` | Restart a container. |
+| `container_kill` | Kill a container. |
 | `container_remove` | Remove a container. |
 | `container_logs` | Read container logs. |
 | `volume_list` | List volumes. |
@@ -73,7 +83,13 @@ Runtime-related tools accept shared `engine` and `target` parameters unless the 
 
 `container_create` supports common Docker create options including `name`, `platform`, `ports`, `env`, `volumes`, `command`, `workingDir`, `user`, `hostname`, `networkMode`, `tty`, `entrypoint`, resource limits, restart policy, labels, and healthcheck settings.
 
-Image build, load, and save tools operate on local tar file paths. `image_build` expects an existing tar build context, `image_load` expects an existing image tar archive, and `image_save` writes a tar archive to a local output path. Registry authentication for private image pull/push is not implemented yet.
+Container lifecycle tools expose the runtime options they commonly need: `container_stop` and `container_restart` accept `timeoutSeconds`, `container_kill` accepts `signal`, `container_wait` accepts `condition` (`not-running`, `next-exit`, or `removed`) and `timeoutSeconds`, and `container_logs` accepts `tail`, `since`, `timestamps`, and bounded `maxBytes` output.
+
+Image build, load, and save tools operate on local tar file paths. `image_build` expects an existing tar build context and supports `dockerfile`, `noCache`, `pull`, `removeIntermediate`, `forceRemoveIntermediate`, and `maxEvents`. `image_load` expects an existing image tar archive. `image_save` writes a tar archive to an absolute local output path, requires the parent directory to exist, and supports `maxBytes` plus `overwrite`. Registry authentication for private image pull/push is not implemented yet.
+
+Streaming and binary responses are bounded. `container_logs` and `container_exec_start` return decoded stream fields such as `stdout`, `stderr`, `text`, `bytesRead`, `frameCount`, `truncated`, and `framed`. Image progress tools such as `image_pull`, `image_build`, `image_push`, and `image_load` return `events`, `eventCount`, `lastStatus`, `lastError`, and `truncated`.
+
+`image_prune` supports `dangling`, `until`, `labels`, and `labelNe` filters. `port_find_free` defaults to `host=127.0.0.1`, `start=1024`, `end=65535`, `count=1`, and `protocol=tcp`, and returns `engine` as `none`.
 
 ## ⚙️ Configuration
 
@@ -85,6 +101,9 @@ Options are read in this order: command-line arguments, environment variables, t
 | `--urls` | `CONTAINER_MCP_HTTP_URLS` or `ASPNETCORE_URLS` | `http://127.0.0.1:7010` |
 | `--default-engine` | `CONTAINER_MCP_DEFAULT_ENGINE` | `auto` |
 | `--default-target` | `CONTAINER_MCP_DEFAULT_TARGET` | `local` |
+| `--api-timeout-seconds` | `CONTAINER_MCP_API_TIMEOUT_SECONDS` | `10` |
+| `--api-probe-timeout-seconds` | `CONTAINER_MCP_API_PROBE_TIMEOUT_SECONDS` | `2` |
+| `--tool-timeout-seconds` | `CONTAINER_MCP_TOOL_TIMEOUT_SECONDS` | `15` |
 
 Important runtime defaults:
 
@@ -100,6 +119,8 @@ Version 1 supports local targets only.
 - **Docker on Unix:** uses `/var/run/docker.sock` by default unless `DOCKER_HOST` is set.
 - **Podman on Unix:** discovers endpoints from `CONTAINER_MCP_PODMAN_HOST`, `PODMAN_HOST`, or common socket paths.
 - **Podman on Windows:** not implemented in v1.
+
+Runtime endpoint environment variables accept `unix://`, `npipe://`, `tcp://`, and `http://` endpoint values.
 
 ## 📁 Project Structure
 
