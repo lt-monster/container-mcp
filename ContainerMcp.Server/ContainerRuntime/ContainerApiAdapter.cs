@@ -64,6 +64,30 @@ internal sealed class ContainerApiAdapter
         }
     }
 
+    public async Task<BoundedByteReadResult> GetBytesForDurationAsync(ResolvedEngine engine, string path, int maxBytes, TimeSpan duration, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await GetBytesForDurationCoreAsync(engine, path, maxBytes, duration, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new BoundedByteReadResult([], "duration");
+        }
+        catch (IOException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (SocketException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw Unavailable(engine, ex);
+        }
+    }
+
     public async Task<byte[]> PostBytesAsync(ResolvedEngine engine, string path, JsonNode? body, int maxBytes, CancellationToken cancellationToken)
     {
         try
@@ -229,6 +253,24 @@ internal sealed class ContainerApiAdapter
         }
 
         return body;
+    }
+
+    private async Task<BoundedByteReadResult> GetBytesForDurationCoreAsync(ResolvedEngine engine, string path, int maxBytes, TimeSpan duration, CancellationToken cancellationToken)
+    {
+        maxBytes = Math.Max(1, maxBytes);
+        using var durationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        durationSource.CancelAfter(duration);
+
+        var client = _factory.GetClient(engine.Endpoint);
+        using var response = await client.GetAsync(path, HttpCompletionOption.ResponseHeadersRead, durationSource.Token);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await ReadAtMostAsync(stream, maxBytes, cancellationToken);
+            ThrowRuntimeError(engine, path, response.StatusCode, Encoding.UTF8.GetString(errorBody));
+        }
+
+        return await ReadAtMostForDurationAsync(stream, maxBytes, durationSource, cancellationToken);
     }
 
     private async Task<byte[]> SendBytesCoreAsync(ResolvedEngine engine, HttpMethod method, string path, JsonNode? body, int maxBytes, CancellationToken cancellationToken)
@@ -423,6 +465,35 @@ internal sealed class ContainerApiAdapter
         return output.ToArray();
     }
 
+    private static async Task<BoundedByteReadResult> ReadAtMostForDurationAsync(Stream stream, int maxBytes, CancellationTokenSource durationSource, CancellationToken cancellationToken)
+    {
+        using var output = new MemoryStream(capacity: Math.Min(maxBytes, 81920));
+        var buffer = new byte[Math.Min(maxBytes, 81920)];
+        while (output.Length < maxBytes)
+        {
+            var remaining = maxBytes - (int)output.Length;
+            int read;
+            try
+            {
+                read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)), durationSource.Token);
+            }
+            catch (OperationCanceledException) when (durationSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                return new BoundedByteReadResult(output.ToArray(), "duration");
+            }
+
+            if (read == 0)
+            {
+                break;
+            }
+
+            output.Write(buffer, 0, read);
+        }
+
+        var completedBy = output.Length >= maxBytes ? "maxBytes" : "duration";
+        return new BoundedByteReadResult(output.ToArray(), completedBy);
+    }
+
     private static void TryDelete(string path)
     {
         try
@@ -448,3 +519,5 @@ internal sealed class ContainerApiAdapter
             StatusCodes.Status503ServiceUnavailable,
             engine.Endpoint.ToString());
 }
+
+internal sealed record BoundedByteReadResult(byte[] Bytes, string CompletedBy);

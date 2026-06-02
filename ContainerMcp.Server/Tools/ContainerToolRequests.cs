@@ -1,3 +1,6 @@
+using System.Text.Json.Nodes;
+using ContainerMcp.Models;
+
 namespace ContainerMcp.Tools;
 
 internal static class ContainerToolRequests
@@ -66,12 +69,63 @@ internal static class ContainerToolRequests
         return string.IsNullOrWhiteSpace(signal) ? path : path + "?signal=" + Uri.EscapeDataString(signal);
     }
 
+    public static string BuildLogsPath(string idOrName, bool follow, JsonElement args)
+    {
+        var query = new List<string>
+        {
+            "stdout=true",
+            "stderr=true",
+            "follow=" + follow.ToString().ToLowerInvariant()
+        };
+
+        if (ToolArgumentReader.OptionalString(args, "tail") is { } tail)
+        {
+            query.Add("tail=" + Uri.EscapeDataString(tail));
+        }
+
+        if (ToolArgumentReader.OptionalString(args, "since") is { } since)
+        {
+            query.Add("since=" + Uri.EscapeDataString(since));
+        }
+
+        if (ToolArgumentReader.OptionalBool(args, "timestamps"))
+        {
+            query.Add("timestamps=true");
+        }
+
+        return $"/containers/{Uri.EscapeDataString(idOrName)}/logs?{string.Join('&', query)}";
+    }
+
+    public static string BuildPrunePath(JsonElement args)
+    {
+        var filters = new JsonObject();
+
+        if (ToolArgumentReader.OptionalString(args, "until") is { } until)
+        {
+            filters["until"] = StringArray([until]);
+        }
+
+        if (ToolArgumentReader.OptionalStringArray(args, "labels") is { Length: > 0 } labels)
+        {
+            filters["label"] = StringArray(labels);
+        }
+
+        if (ToolArgumentReader.OptionalStringArray(args, "labelNe") is { Length: > 0 } labelNe)
+        {
+            filters["label!"] = StringArray(labelNe);
+        }
+
+        return filters.Count == 0
+            ? "/containers/prune"
+            : "/containers/prune?filters=" + Uri.EscapeDataString(filters.ToCompactJson());
+    }
+
     private static int ValidateTimeoutSeconds(int timeoutSeconds)
     {
         if (timeoutSeconds < 0)
         {
-            throw new ContainerMcp.Models.ContainerMcpException(
-                ContainerMcp.Models.McpErrorCode.InvalidArgument,
+            throw new ContainerMcpException(
+                McpErrorCode.InvalidArgument,
                 "Argument 'timeoutSeconds' must be greater than or equal to 0.",
                 StatusCodes.Status400BadRequest);
         }
@@ -79,6 +133,17 @@ internal static class ContainerToolRequests
         return timeoutSeconds;
     }
 
-    private static ContainerMcp.Models.ContainerMcpException InvalidArgument(string message) =>
-        new(ContainerMcp.Models.McpErrorCode.InvalidArgument, message, StatusCodes.Status400BadRequest);
+    private static JsonArray StringArray(IEnumerable<string> values)
+    {
+        var array = new JsonArray();
+        foreach (var value in values)
+        {
+            array.AddNode(JsonValue.Create(value));
+        }
+
+        return array;
+    }
+
+    private static ContainerMcpException InvalidArgument(string message) =>
+        new(McpErrorCode.InvalidArgument, message, StatusCodes.Status400BadRequest);
 }

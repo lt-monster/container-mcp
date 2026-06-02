@@ -7,6 +7,8 @@ internal sealed class ContainerToolService
 {
     private const int DefaultLogMaxBytes = 1024 * 1024;
     private const int HardLogMaxBytes = 4 * 1024 * 1024;
+    private const int DefaultLogFollowDurationSeconds = 10;
+    private const int HardLogFollowDurationSeconds = 60;
 
     private readonly RuntimeToolSupport _runtime;
     private readonly ContainerApiAdapter _api;
@@ -166,6 +168,13 @@ internal sealed class ContainerToolService
         return RuntimeToolSupport.Success(engine, result);
     }
 
+    public async Task<JsonObject> ContainerPruneAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, ContainerToolRequests.BuildPrunePath(args), null, cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
     public async Task<JsonObject> ContainerRemoveAsync(JsonElement args, CancellationToken cancellationToken)
     {
         var id = ToolArgumentReader.RequireString(args, "idOrName");
@@ -180,32 +189,40 @@ internal sealed class ContainerToolService
     public async Task<JsonObject> ContainerLogsAsync(JsonElement args, CancellationToken cancellationToken)
     {
         var id = ToolArgumentReader.RequireString(args, "idOrName");
-        var maxBytes = Math.Clamp(ToolArgumentReader.OptionalInt(args, "maxBytes") ?? DefaultLogMaxBytes, 1, HardLogMaxBytes);
+        var maxBytes = NormalizeLogMaxBytes(args);
         var engine = await _runtime.ResolveAsync(args, cancellationToken);
-        var query = new List<string>
-        {
-            "stdout=true",
-            "stderr=true",
-            "follow=false"
-        };
-
-        if (ToolArgumentReader.OptionalString(args, "tail") is { } tail)
-        {
-            query.Add("tail=" + Uri.EscapeDataString(tail));
-        }
-
-        if (ToolArgumentReader.OptionalString(args, "since") is { } since)
-        {
-            query.Add("since=" + Uri.EscapeDataString(since));
-        }
-
-        if (ToolArgumentReader.OptionalBool(args, "timestamps"))
-        {
-            query.Add("timestamps=true");
-        }
-
-        var bytes = await _api.GetBytesAsync(engine, $"/containers/{Uri.EscapeDataString(id)}/logs?{string.Join('&', query)}", maxBytes + 8192, cancellationToken);
+        var bytes = await _api.GetBytesAsync(engine, ContainerToolRequests.BuildLogsPath(id, follow: false, args), maxBytes + 8192, cancellationToken);
         var result = DockerRawStreamDecoder.Decode(bytes, maxBytes);
         return RuntimeToolSupport.Success(engine, result);
     }
+
+    public async Task<JsonObject> ContainerLogsFollowAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var id = ToolArgumentReader.RequireString(args, "idOrName");
+        var maxBytes = NormalizeLogMaxBytes(args);
+        var durationSeconds = NormalizeLogFollowDurationSeconds(args);
+        var engine = await _runtime.ResolveAsync(args, cancellationToken);
+        var read = await _api.GetBytesForDurationAsync(
+            engine,
+            ContainerToolRequests.BuildLogsPath(id, follow: true, args),
+            maxBytes,
+            TimeSpan.FromSeconds(durationSeconds),
+            cancellationToken);
+
+        var result = DockerRawStreamDecoder.Decode(read.Bytes, maxBytes);
+        if (read.CompletedBy == "maxBytes")
+        {
+            result["truncated"] = true;
+        }
+
+        result["durationSeconds"] = durationSeconds;
+        result["completedBy"] = read.CompletedBy;
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    private static int NormalizeLogMaxBytes(JsonElement args) =>
+        Math.Clamp(ToolArgumentReader.OptionalInt(args, "maxBytes") ?? DefaultLogMaxBytes, 1, HardLogMaxBytes);
+
+    private static int NormalizeLogFollowDurationSeconds(JsonElement args) =>
+        Math.Clamp(ToolArgumentReader.OptionalInt(args, "durationSeconds") ?? DefaultLogFollowDurationSeconds, 1, HardLogFollowDurationSeconds);
 }
