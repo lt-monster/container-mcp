@@ -71,6 +71,7 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `container_stop` | Stop a container. |
 | `container_restart` | Restart a container. |
 | `container_kill` | Kill a container. |
+| `container_prune` | Prune stopped containers. |
 | `container_remove` | Remove a container. |
 | `container_logs` | Read container logs. |
 | `container_logs_follow` | Follow container logs for a bounded duration. |
@@ -136,6 +137,7 @@ container-mcp/
 │  ├─ Ports/
 │  ├─ Tools/
 │  └─ Program.cs
+├─ ContainerMcp.Server.Tests/
 ├─ README.md
 └─ README.zh-CN.md
 ```

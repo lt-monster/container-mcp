@@ -71,6 +71,7 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `container_stop` | 停止容器。 |
 | `container_restart` | 重启容器。 |
 | `container_kill` | Kill 容器。 |
+| `container_prune` | 清理已停止的容器。 |
 | `container_remove` | 删除容器。 |
 | `container_logs` | 读取容器日志。 |
 | `container_logs_follow` | 在有界时间内跟随容器日志。 |
