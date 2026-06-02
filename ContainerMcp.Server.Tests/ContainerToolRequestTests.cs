@@ -1,4 +1,5 @@
 using ContainerMcp.Tools;
+using System.Text.Json;
 
 namespace ContainerMcp.Server.Tests;
 
@@ -108,5 +109,59 @@ public sealed class ContainerToolRequestTests
     public void BuildKillPath_EscapesSignal()
     {
         Assert.Equal("/containers/web/kill?signal=SIG%20TERM", ContainerToolRequests.BuildKillPath("web", "SIG TERM"));
+    }
+
+    [Fact]
+    public void BuildPrunePath_MapsFiltersToDockerQuery()
+    {
+        using var document = JsonDocument.Parse(
+            """
+            {
+              "until": "24h",
+              "labels": ["app=web", "stage=dev"],
+              "labelNe": ["keep=true"]
+            }
+            """);
+
+        var path = ContainerToolRequests.BuildPrunePath(document.RootElement);
+
+        Assert.StartsWith("/containers/prune?filters=", path);
+        Assert.Contains("%22until%22%3A%5B%2224h%22%5D", path);
+        Assert.Contains("%22label%22%3A%5B%22app%3Dweb%22%2C%22stage%3Ddev%22%5D", path);
+        Assert.Contains("%22label%21%22%3A%5B%22keep%3Dtrue%22%5D", path);
+    }
+
+    [Fact]
+    public void BuildPrunePath_OmitsFiltersWhenNoneAreProvided()
+    {
+        using var document = JsonDocument.Parse("{}");
+
+        Assert.Equal("/containers/prune", ContainerToolRequests.BuildPrunePath(document.RootElement));
+    }
+
+    [Fact]
+    public void BuildLogsPath_MapsFollowTailAndTimestamps()
+    {
+        using var document = JsonDocument.Parse(
+            """
+            {
+              "tail": "last 10",
+              "timestamps": true
+            }
+            """);
+
+        var path = ContainerToolRequests.BuildLogsPath("web/api", follow: true, document.RootElement);
+
+        Assert.Equal("/containers/web%2Fapi/logs?stdout=true&stderr=true&follow=true&tail=last%2010&timestamps=true", path);
+    }
+
+    [Fact]
+    public void BuildLogsPath_UsesFollowFalseForSnapshotLogs()
+    {
+        using var document = JsonDocument.Parse("{}");
+
+        var path = ContainerToolRequests.BuildLogsPath("web", follow: false, document.RootElement);
+
+        Assert.Equal("/containers/web/logs?stdout=true&stderr=true&follow=false", path);
     }
 }

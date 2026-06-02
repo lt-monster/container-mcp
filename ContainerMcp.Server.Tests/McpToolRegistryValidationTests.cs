@@ -38,6 +38,8 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_stats")]
     [InlineData("container_top")]
     [InlineData("container_wait")]
+    [InlineData("container_prune")]
+    [InlineData("container_logs_follow")]
     public void List_IncludesContainerManagementTool(string toolName)
     {
         var registry = CreateRegistry();
@@ -81,6 +83,11 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_wait", """{}""", "Missing required argument 'idOrName'.")]
     [InlineData("container_wait", """{"idOrName":"web","condition":"running"}""", "Argument 'condition' must be one of: not-running, next-exit, removed.")]
     [InlineData("container_wait", """{"idOrName":"web","timeoutSeconds":"10"}""", "Argument 'timeoutSeconds' must be an integer.")]
+    [InlineData("container_prune", """{"labels":[1]}""", "Argument 'labels[0]' must be a string.")]
+    [InlineData("container_logs_follow", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("container_logs_follow", """{"idOrName":"web","durationSeconds":"10"}""", "Argument 'durationSeconds' must be an integer.")]
+    [InlineData("container_logs_follow", """{"idOrName":"web","maxBytes":"1024"}""", "Argument 'maxBytes' must be an integer.")]
+    [InlineData("container_logs_follow", """{"idOrName":"web","timestamps":"true"}""", "Argument 'timestamps' must be a boolean.")]
     [InlineData("container_create", """{"image":"nginx","command":{"bad":true}}""", "Argument 'command' does not match any allowed schema.")]
     [InlineData("container_create", """{"image":"nginx","tty":"true"}""", "Argument 'tty' must be a boolean.")]
     [InlineData("container_create", """{"image":"nginx","entrypoint":{"bad":true}}""", "Argument 'entrypoint' does not match any allowed schema.")]

@@ -37,6 +37,38 @@ public sealed class DockerStreamParserTests
     }
 
     [Fact]
+    public void DecodePlainLogs_ReturnsUnframedText()
+    {
+        var bytes = Encoding.UTF8.GetBytes("hello\nplain log\n");
+
+        var result = DockerRawStreamDecoder.Decode(bytes, maxBytes: 1024);
+
+        Assert.Equal("hello\nplain log\n", result["stdout"]!.GetValue<string>());
+        Assert.Equal(string.Empty, result["stderr"]!.GetValue<string>());
+        Assert.Equal("hello\nplain log\n", result["text"]!.GetValue<string>());
+        Assert.Equal(16, result["bytesRead"]!.GetValue<int>());
+        Assert.Equal(0, result["frameCount"]!.GetValue<int>());
+        Assert.False(result["truncated"]!.GetValue<bool>());
+        Assert.False(result["framed"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void DecodePlainLogs_TruncatesAtMaxBytes()
+    {
+        var bytes = Encoding.UTF8.GetBytes("abcdef");
+
+        var result = DockerRawStreamDecoder.Decode(bytes, maxBytes: 3);
+
+        Assert.Equal("abc", result["stdout"]!.GetValue<string>());
+        Assert.Equal(string.Empty, result["stderr"]!.GetValue<string>());
+        Assert.Equal("abc", result["text"]!.GetValue<string>());
+        Assert.Equal(3, result["bytesRead"]!.GetValue<int>());
+        Assert.Equal(0, result["frameCount"]!.GetValue<int>());
+        Assert.True(result["truncated"]!.GetValue<bool>());
+        Assert.False(result["framed"]!.GetValue<bool>());
+    }
+
+    [Fact]
     public void DecodeRawStream_TruncatesAtMaxBytes()
     {
         var bytes = RawFrame(1, "abcdef");

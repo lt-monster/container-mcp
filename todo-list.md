@@ -27,7 +27,7 @@
 - [x] **3.6** 新增 `container_stats`，默认使用有界的 `stream=false`。（后续实现）
 - [x] **3.7** 新增 `container_top`。（后续实现）
 - [x] **3.8** 新增 `container_wait`，并明确 timeout 行为。（后续实现）
-- [ ] **3.9** 新增 `container_prune`。（后续实现）
+- [x] **3.9** 新增 `container_prune`。（现在实现）
 - [x] **3.10** 扩展 `container_create` 参数：working directory、user、hostname、network mode、resource limits、platform、TTY、entrypoint、healthcheck。（后续实现）
 - [x] **3.11** 为容器端口映射增加校验，不再静默忽略格式错误的条目。（现在实现）
 - [x] **3.12** 为 restart policy 名称和 timeout 参数增加校验。（现在实现）
@@ -44,10 +44,10 @@
 
 ## 5. 日志与流式处理
 
-- [ ] **5.1** 保持 `container_logs` 默认有界，并文档化 `maxBytes`。（现在实现）
-- [ ] **5.2** 新增独立的有界 `container_logs_follow` 工具，支持 `durationSeconds`、`tail` 和 `maxBytes` 限制。（后续实现）
-- [ ] **5.3** 增加 plain TTY logs 和 multiplexed non-TTY raw-stream logs 的测试。（现在实现）
-- [ ] **5.4** 增加日志在 Docker raw-stream frame 中间被截断时的测试。（现在实现）
+- [x] **5.1** 保持 `container_logs` 默认有界，并文档化 `maxBytes`。（现在实现）
+- [x] **5.2** 新增独立的有界 `container_logs_follow` 工具，支持 `durationSeconds`、`tail` 和 `maxBytes` 限制。（现在实现）
+- [x] **5.3** 增加 plain TTY logs 和 multiplexed non-TTY raw-stream logs 的测试。（现在实现）
+- [x] **5.4** 增加日志在 Docker raw-stream frame 中间被截断时的测试。（现在实现）
 - [ ] **5.5** 决定未来真正的实时流式能力应使用 session、subscription 还是 streamable HTTP。（后续实现）
 
 ## 6. 卷工具

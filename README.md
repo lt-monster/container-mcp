@@ -73,6 +73,7 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `container_kill` | Kill a container. |
 | `container_remove` | Remove a container. |
 | `container_logs` | Read container logs. |
+| `container_logs_follow` | Follow container logs for a bounded duration. |
 | `volume_list` | List volumes. |
 | `volume_create` | Create a named volume. |
 | `volume_remove` | Remove a volume. |
@@ -83,11 +84,11 @@ Runtime-related tools accept shared `engine` and `target` parameters unless the 
 
 `container_create` supports common Docker create options including `name`, `platform`, `ports`, `env`, `volumes`, `command`, `workingDir`, `user`, `hostname`, `networkMode`, `tty`, `entrypoint`, resource limits, restart policy, labels, and healthcheck settings.
 
-Container lifecycle tools expose the runtime options they commonly need: `container_stop` and `container_restart` accept `timeoutSeconds`, `container_kill` accepts `signal`, `container_wait` accepts `condition` (`not-running`, `next-exit`, or `removed`) and `timeoutSeconds`, and `container_logs` accepts `tail`, `since`, `timestamps`, and bounded `maxBytes` output.
+Container lifecycle tools expose the runtime options they commonly need: `container_stop` and `container_restart` accept `timeoutSeconds`, `container_kill` accepts `signal`, `container_wait` accepts `condition` (`not-running`, `next-exit`, or `removed`) and `timeoutSeconds`, and `container_logs` accepts `tail`, `since`, `timestamps`, and bounded `maxBytes` output. `container_logs` is non-following (`follow=false`) by default; `container_logs_follow` uses `follow=true` with `durationSeconds`, `tail`, `timestamps`, and `maxBytes`. Log `maxBytes` defaults to 1 MiB and is capped at 4 MiB; follow duration defaults to 10 seconds and is capped at 60 seconds.
 
 Image build, load, and save tools operate on local tar file paths. `image_build` expects an existing tar build context and supports `dockerfile`, `noCache`, `pull`, `removeIntermediate`, `forceRemoveIntermediate`, and `maxEvents`. `image_load` expects an existing image tar archive. `image_save` writes a tar archive to an absolute local output path, requires the parent directory to exist, and supports `maxBytes` plus `overwrite`. Registry authentication for private image pull/push is not implemented yet.
 
-Streaming and binary responses are bounded. `container_logs` and `container_exec_start` return decoded stream fields such as `stdout`, `stderr`, `text`, `bytesRead`, `frameCount`, `truncated`, and `framed`. Image progress tools such as `image_pull`, `image_build`, `image_push`, and `image_load` return `events`, `eventCount`, `lastStatus`, `lastError`, and `truncated`.
+Streaming and binary responses are bounded. `container_logs`, `container_logs_follow`, and `container_exec_start` return decoded stream fields such as `stdout`, `stderr`, `text`, `bytesRead`, `frameCount`, `truncated`, and `framed`; `container_logs_follow` also returns `durationSeconds` and `completedBy`. Image progress tools such as `image_pull`, `image_build`, `image_push`, and `image_load` return `events`, `eventCount`, `lastStatus`, `lastError`, and `truncated`.
 
 `image_prune` supports `dangling`, `until`, `labels`, and `labelNe` filters. `port_find_free` defaults to `host=127.0.0.1`, `start=1024`, `end=65535`, `count=1`, and `protocol=tcp`, and returns `engine` as `none`.
 
