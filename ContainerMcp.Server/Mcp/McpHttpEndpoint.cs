@@ -15,9 +15,22 @@ internal static class McpHttpEndpoint
     {
         try
         {
-            if (options is not null && !HttpTokenValidator.IsAuthorized(options, httpContext.Request.Headers.Authorization.ToString()))
+            var logContext = LogContext(httpContext, tokenId: null);
+            if (options is not null)
             {
-                return Results.Unauthorized();
+                var authorization = HttpTokenValidator.TryAuthorize(options, httpContext.Request.Headers.Authorization.ToString());
+                if (!authorization.IsAuthorized)
+                {
+                    Console.Error.WriteLine($"warn: mcp auth failed remote={Remote(httpContext)} reason={authorization.Reason}");
+                    return Results.Unauthorized();
+                }
+
+                if (options.HttpTokens.Count > 0)
+                {
+                    Console.Error.WriteLine($"info: mcp auth accepted remote={Remote(httpContext)} tokenId={authorization.TokenId}");
+                }
+
+                logContext = LogContext(httpContext, authorization.TokenId);
             }
 
             if (httpContext.Request.ContentLength is > 0 && httpContext.Request.ContentLength > maxRequestBodyBytes)
@@ -29,7 +42,7 @@ internal static class McpHttpEndpoint
 
             await using var body = await ReadBodyAsync(httpContext.Request.Body, maxRequestBodyBytes, httpContext.RequestAborted);
             using var document = await JsonDocument.ParseAsync(body, cancellationToken: httpContext.RequestAborted);
-            var response = await handler.HandleMessageAsync(document.RootElement, httpContext.RequestAborted);
+            var response = await handler.HandleMessageAsync(document.RootElement, httpContext.RequestAborted, logContext);
             if (response is null)
             {
                 return Results.Accepted();
@@ -83,4 +96,10 @@ internal static class McpHttpEndpoint
     {
         public long MaxBytes { get; } = maxBytes;
     }
+
+    private static McpRequestLogContext LogContext(HttpContext httpContext, string? tokenId) =>
+        new(Remote(httpContext), tokenId);
+
+    private static string Remote(HttpContext httpContext) =>
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

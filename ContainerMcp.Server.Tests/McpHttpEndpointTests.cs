@@ -118,6 +118,30 @@ public sealed class McpHttpEndpointTests
     }
 
     [Fact]
+    public async Task HandlePostAsync_LogsAcceptedAndFailedBearerAuthentication()
+    {
+        const string token = "cmcp_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN";
+        var options = OptionsWithToken(token);
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), options);
+        using var capture = ConsoleErrorCapture.Start();
+
+        var rejected = HttpContextWithBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""");
+        rejected.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+        var rejectedResult = await McpHttpEndpoint.HandlePostAsync(rejected, handler, options);
+        await rejectedResult.ExecuteAsync(rejected);
+
+        var accepted = HttpContextWithBody("""{"jsonrpc":"2.0","id":2,"method":"ping"}""");
+        accepted.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+        accepted.Request.Headers.Authorization = "Bearer " + token;
+        var acceptedResult = await McpHttpEndpoint.HandlePostAsync(accepted, handler, options);
+        await acceptedResult.ExecuteAsync(accepted);
+
+        var log = capture.Text;
+        Assert.Contains("warn: mcp auth failed remote=127.0.0.1 reason=missing_bearer_token", log);
+        Assert.Contains("info: mcp auth accepted remote=127.0.0.1 tokenId=default", log);
+    }
+
+    [Fact]
     public async Task HandleUnsupportedMethod_ReturnsMethodNotAllowed()
     {
         var context = new DefaultHttpContext();
@@ -162,5 +186,27 @@ public sealed class McpHttpEndpointTests
 
         public Task<JsonObject> CallAsync(string name, JsonElement arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class ConsoleErrorCapture : IDisposable
+    {
+        private readonly TextWriter _original;
+        private readonly StringWriter _writer = new();
+
+        private ConsoleErrorCapture()
+        {
+            _original = Console.Error;
+            Console.SetError(_writer);
+        }
+
+        public string Text => _writer.ToString();
+
+        public static ConsoleErrorCapture Start() => new();
+
+        public void Dispose()
+        {
+            Console.SetError(_original);
+            _writer.Dispose();
+        }
     }
 }

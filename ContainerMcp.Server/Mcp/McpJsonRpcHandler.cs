@@ -16,16 +16,22 @@ internal sealed class McpJsonRpcHandler
     }
 
     public async Task<JsonNode?> HandleMessageAsync(JsonElement message, CancellationToken cancellationToken)
+        => await HandleMessageAsync(message, cancellationToken, McpRequestLogContext.Stdio);
+
+    public async Task<JsonNode?> HandleMessageAsync(JsonElement message, CancellationToken cancellationToken, McpRequestLogContext logContext)
     {
         return message.ValueKind switch
         {
-            JsonValueKind.Object => await HandleAsync(message, cancellationToken),
-            JsonValueKind.Array => await HandleBatchAsync(message, cancellationToken),
+            JsonValueKind.Object => await HandleAsync(message, cancellationToken, logContext),
+            JsonValueKind.Array => await HandleBatchAsync(message, cancellationToken, logContext),
             _ => Error(null, -32600, "Invalid JSON-RPC request.")
         };
     }
 
     public async Task<JsonObject?> HandleAsync(JsonElement request, CancellationToken cancellationToken)
+        => await HandleAsync(request, cancellationToken, McpRequestLogContext.Stdio);
+
+    public async Task<JsonObject?> HandleAsync(JsonElement request, CancellationToken cancellationToken, McpRequestLogContext logContext)
     {
         if (request.ValueKind != JsonValueKind.Object)
         {
@@ -52,7 +58,7 @@ internal sealed class McpJsonRpcHandler
                 "initialize" => Result(id, InitializeResult()),
                 "ping" => Result(id, new JsonObject()),
                 "tools/list" => Result(id, new JsonObject { ["tools"] = _tools.List() }),
-                "tools/call" => await HandleToolCallAsync(id, GetParams(request), cancellationToken),
+                "tools/call" => await HandleToolCallAsync(id, GetParams(request), cancellationToken, logContext),
                 "notifications/initialized" => Result(id, new JsonObject()),
                 _ => Error(id, -32601, $"Method '{method}' is not supported.")
             };
@@ -80,7 +86,7 @@ internal sealed class McpJsonRpcHandler
         }
     }
 
-    private async Task<JsonNode?> HandleBatchAsync(JsonElement batch, CancellationToken cancellationToken)
+    private async Task<JsonNode?> HandleBatchAsync(JsonElement batch, CancellationToken cancellationToken, McpRequestLogContext logContext)
     {
         if (batch.GetArrayLength() == 0)
         {
@@ -91,7 +97,7 @@ internal sealed class McpJsonRpcHandler
         foreach (var item in batch.EnumerateArray())
         {
             JsonObject? response = item.ValueKind == JsonValueKind.Object
-                ? await HandleAsync(item, cancellationToken)
+                ? await HandleAsync(item, cancellationToken, logContext)
                 : Error(null, -32600, "Invalid JSON-RPC request.");
 
             if (response is not null)
@@ -115,7 +121,7 @@ internal sealed class McpJsonRpcHandler
         }
     };
 
-    private async Task<JsonObject> HandleToolCallAsync(JsonElement? id, JsonElement parameters, CancellationToken cancellationToken)
+    private async Task<JsonObject> HandleToolCallAsync(JsonElement? id, JsonElement parameters, CancellationToken cancellationToken, McpRequestLogContext logContext)
     {
         if (!parameters.TryGetProperty("name", out var nameProperty) || nameProperty.ValueKind != JsonValueKind.String)
         {
@@ -128,23 +134,40 @@ internal sealed class McpJsonRpcHandler
             : EmptyArguments();
 
         JsonObject result;
+        var requestId = LogId(id);
+        var startTimestamp = McpToolLogger.Timestamp();
+        McpToolLogger.Start(requestId, name, arguments, logContext);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_options.ToolTimeout);
-        var call = _tools.CallAsync(name, arguments, timeout.Token);
 
         try
         {
+            var call = _tools.CallAsync(name, arguments, timeout.Token);
             result = await call.WaitAsync(_options.ToolTimeout, cancellationToken);
+            McpToolLogger.Success(requestId, name, arguments, result, startTimestamp);
         }
         catch (TimeoutException)
         {
             timeout.Cancel();
-            await ObserveTimedOutCallAsync(call);
-            throw ToolTimeout(name);
+            var exception = ToolTimeout(name);
+            McpToolLogger.Error(requestId, name, arguments, exception, startTimestamp);
+            throw exception;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw ToolTimeout(name);
+            var exception = ToolTimeout(name);
+            McpToolLogger.Error(requestId, name, arguments, exception, startTimestamp);
+            throw exception;
+        }
+        catch (ContainerMcpException ex)
+        {
+            McpToolLogger.Error(requestId, name, arguments, ex, startTimestamp);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            McpToolLogger.Error(requestId, name, arguments, ex, startTimestamp);
+            throw;
         }
 
         return Result(id, new JsonObject
@@ -162,18 +185,6 @@ internal sealed class McpJsonRpcHandler
     {
         using var document = JsonDocument.Parse("{}");
         return document.RootElement.Clone();
-    }
-
-    private static async Task ObserveTimedOutCallAsync(Task<JsonObject> call)
-    {
-        try
-        {
-            await call.WaitAsync(TimeSpan.FromMilliseconds(100));
-        }
-        catch
-        {
-            // The MCP response should be a timeout regardless of how the tool finishes after cancellation.
-        }
     }
 
     private ContainerMcpException ToolTimeout(string name) =>
@@ -246,6 +257,21 @@ internal sealed class McpJsonRpcHandler
             JsonValueKind.Number when id.Value.TryGetInt64(out var number) => JsonValue.Create(number),
             JsonValueKind.String => JsonValue.Create(id.Value.GetString()),
             _ => id.Value.ToJsonNode()
+        };
+    }
+
+    private static string LogId(JsonElement? id)
+    {
+        if (id is null || id.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return "-";
+        }
+
+        return id.Value.ValueKind switch
+        {
+            JsonValueKind.Number when id.Value.TryGetInt64(out var number) => number.ToString(CultureInfo.InvariantCulture),
+            JsonValueKind.String => id.Value.GetString() ?? "-",
+            _ => "-"
         };
     }
 }

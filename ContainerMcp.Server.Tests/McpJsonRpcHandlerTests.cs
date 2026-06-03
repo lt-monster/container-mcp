@@ -176,12 +176,76 @@ public sealed class McpJsonRpcHandlerTests
         Assert.Equal(1, data["details"]!["scanned"]!.GetValue<int>());
     }
 
+    [Fact]
+    public async Task HandleAsync_LogsToolStartAndSuccessWithResourceMetadata()
+    {
+        var handler = new McpJsonRpcHandler(new ReturningToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse(
+            """
+            {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"container_stop","arguments":{"idOrName":"f1537f3881bf3f72024a3e618eb62f2c555ad4e91bdddf6dcd162ed7688345f4","timeoutSeconds":10,"engine":"docker","target":"local"}}}
+            """);
+        using var capture = ConsoleErrorCapture.Start();
+
+        await handler.HandleAsync(
+            document.RootElement,
+            CancellationToken.None,
+            new McpRequestLogContext("127.0.0.1", "local-admin"));
+
+        var log = capture.Text;
+        Assert.Contains("info: mcp tool start", log);
+        Assert.Contains("requestId=1", log);
+        Assert.Contains("tool=container_stop", log);
+        Assert.Contains("engine=docker", log);
+        Assert.Contains("target=local", log);
+        Assert.Contains("resourceType=container", log);
+        Assert.Contains("resourceId=f1537f3881bf", log);
+        Assert.Contains("timeoutSeconds=10", log);
+        Assert.Contains("remote=127.0.0.1", log);
+        Assert.Contains("tokenId=local-admin", log);
+        Assert.Contains("info: mcp tool success", log);
+        Assert.Contains("status=ok", log);
+        Assert.Contains("durationMs=", log);
+    }
+
+    [Fact]
+    public async Task HandleAsync_LogsToolErrorsWithMcpErrorCode()
+    {
+        var handler = new McpJsonRpcHandler(new ThrowingToolRegistry(McpErrorCode.ContainerNotFound), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse(
+            """{"jsonrpc":"2.0","id":"abc","method":"tools/call","params":{"name":"container_remove","arguments":{"idOrName":"missing","engine":"docker"}}}""");
+        using var capture = ConsoleErrorCapture.Start();
+
+        await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        var log = capture.Text;
+        Assert.Contains("error: mcp tool error", log);
+        Assert.Contains("requestId=abc", log);
+        Assert.Contains("tool=container_remove", log);
+        Assert.Contains("resourceType=container", log);
+        Assert.Contains("resourceId=missing", log);
+        Assert.Contains("errorCode=container_not_found", log);
+        Assert.Contains("statusCode=400", log);
+        Assert.Contains("message=\"Tool failed.\"", log);
+    }
+
     private sealed class EmptyToolRegistry : IMcpToolRegistry
     {
         public JsonArray List() => [];
 
         public Task<JsonObject> CallAsync(string name, JsonElement arguments, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class ReturningToolRegistry : IMcpToolRegistry
+    {
+        public JsonArray List() => [];
+
+        public Task<JsonObject> CallAsync(string name, JsonElement arguments, CancellationToken cancellationToken) =>
+            Task.FromResult(new JsonObject
+            {
+                ["engine"] = "docker",
+                ["target"] = "local"
+            });
     }
 
     private sealed class ThrowingToolRegistry(string errorCode, JsonObject? details = null) : IMcpToolRegistry
@@ -200,6 +264,28 @@ public sealed class McpJsonRpcHandlerTests
         {
             await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             return new JsonObject();
+        }
+    }
+
+    private sealed class ConsoleErrorCapture : IDisposable
+    {
+        private readonly TextWriter _original;
+        private readonly StringWriter _writer = new();
+
+        private ConsoleErrorCapture()
+        {
+            _original = Console.Error;
+            Console.SetError(_writer);
+        }
+
+        public string Text => _writer.ToString();
+
+        public static ConsoleErrorCapture Start() => new();
+
+        public void Dispose()
+        {
+            Console.SetError(_original);
+            _writer.Dispose();
         }
     }
 }

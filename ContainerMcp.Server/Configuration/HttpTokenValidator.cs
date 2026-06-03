@@ -55,24 +55,27 @@ internal static class HttpTokenValidator
         }
     }
 
-    public static bool IsAuthorized(ContainerMcpOptions options, string? authorizationHeader)
+    public static bool IsAuthorized(ContainerMcpOptions options, string? authorizationHeader) =>
+        TryAuthorize(options, authorizationHeader).IsAuthorized;
+
+    public static HttpTokenAuthorizationResult TryAuthorize(ContainerMcpOptions options, string? authorizationHeader)
     {
         if (options.HttpTokens.Count == 0)
         {
-            return true;
+            return new HttpTokenAuthorizationResult(true, null, "not_required");
         }
 
         const string bearerPrefix = "Bearer ";
         if (authorizationHeader is null
             || !authorizationHeader.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return new HttpTokenAuthorizationResult(false, null, "missing_bearer_token");
         }
 
         var provided = authorizationHeader[bearerPrefix.Length..].Trim();
         if (!IsValidValue(provided))
         {
-            return false;
+            return new HttpTokenAuthorizationResult(false, null, "invalid_bearer_token");
         }
 
         var providedBytes = Encoding.UTF8.GetBytes(provided);
@@ -87,11 +90,11 @@ internal static class HttpTokenValidator
             if (providedBytes.Length == expectedBytes.Length
                 && CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes))
             {
-                return true;
+                return new HttpTokenAuthorizationResult(true, token.Id, "accepted");
             }
         }
 
-        return false;
+        return new HttpTokenAuthorizationResult(false, null, "invalid_bearer_token");
     }
 
     public static bool IsValidValue(string? value)
@@ -104,3 +107,8 @@ internal static class HttpTokenValidator
         return !WeakValues.Any(weak => value.Equals(weak, StringComparison.OrdinalIgnoreCase));
     }
 }
+
+internal sealed record HttpTokenAuthorizationResult(
+    bool IsAuthorized,
+    string? TokenId,
+    string Reason);
