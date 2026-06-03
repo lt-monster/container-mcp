@@ -52,9 +52,9 @@
 
 ## 6. 卷工具
 
-- [ ] **6.1** 新增 `volume_inspect`。（现在实现）
-- [ ] **6.2** 新增 `volume_prune`。（后续实现）
-- [ ] **6.3** 为 `volume_create` 增加 driver 和 driver option 支持。（后续实现）
+- [x] **6.1** 新增 `volume_inspect`。（现在实现）
+- [x] **6.2** 新增 `volume_prune`。（现在实现）
+- [x] **6.3** 为 `volume_create` 增加 driver 和 driver option 支持。（现在实现）
 - [ ] **6.4** 除非有单独通过评审的安全设计，否则 v1 继续不支持 host bind mount。（现在实现）
 
 ## 7. 网络工具

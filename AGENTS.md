@@ -77,7 +77,9 @@ Current tools:
 - `container_logs`
 - `container_logs_follow`
 - `volume_list`
+- `volume_inspect`
 - `volume_create`
+- `volume_prune`
 - `volume_remove`
 - `docker_diagnose`
 - `port_find_free`

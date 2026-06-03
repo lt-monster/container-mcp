@@ -76,7 +76,9 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `container_logs` | Read container logs. |
 | `container_logs_follow` | Follow container logs for a bounded duration. |
 | `volume_list` | List volumes. |
+| `volume_inspect` | Inspect a volume. |
 | `volume_create` | Create a named volume. |
+| `volume_prune` | Prune unused local volumes. |
 | `volume_remove` | Remove a volume. |
 | `docker_diagnose` | Diagnose Docker connectivity. |
 | `port_find_free` | Find available local ports. |
@@ -91,7 +93,7 @@ Image build, load, and save tools operate on local tar file paths. `image_build`
 
 Streaming and binary responses are bounded. `container_logs`, `container_logs_follow`, and `container_exec_start` return decoded stream fields such as `stdout`, `stderr`, `text`, `bytesRead`, `frameCount`, `truncated`, and `framed`; `container_logs_follow` also returns `durationSeconds` and `completedBy`. Image progress tools such as `image_pull`, `image_build`, `image_push`, and `image_load` return `events`, `eventCount`, `lastStatus`, `lastError`, and `truncated`.
 
-`image_prune` supports `dangling`, `until`, `labels`, and `labelNe` filters. `port_find_free` defaults to `host=127.0.0.1`, `start=1024`, `end=65535`, `count=1`, and `protocol=tcp`, and returns `engine` as `none`.
+`image_prune` supports `dangling`, `until`, `labels`, and `labelNe` filters. `volume_create` supports `driver`, `driverOptions`, and `labels`; `volume_prune` supports `labels` and `labelNe` filters. `port_find_free` defaults to `host=127.0.0.1`, `start=1024`, `end=65535`, `count=1`, and `protocol=tcp`, and returns `engine` as `none`.
 
 ## ⚙️ Configuration
 

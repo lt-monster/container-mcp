@@ -76,7 +76,9 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 | `container_logs` | 读取容器日志。 |
 | `container_logs_follow` | 在有界时间内跟随容器日志。 |
 | `volume_list` | 列出卷。 |
+| `volume_inspect` | 查看卷详情。 |
 | `volume_create` | 创建命名卷。 |
+| `volume_prune` | 清理未使用的本地卷。 |
 | `volume_remove` | 删除卷。 |
 | `docker_diagnose` | 诊断 Docker 连接。 |
 | `port_find_free` | 查找本地空闲端口。 |
@@ -91,7 +93,7 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 
 流式和二进制响应都是有界的。`container_logs`、`container_logs_follow` 和 `container_exec_start` 返回解码后的 `stdout`、`stderr`、`text`、`bytesRead`、`frameCount`、`truncated` 和 `framed` 字段；`container_logs_follow` 还会返回 `durationSeconds` 和 `completedBy`。`image_pull`、`image_build`、`image_push`、`image_load` 等镜像进度工具返回 `events`、`eventCount`、`lastStatus`、`lastError` 和 `truncated`。
 
-`image_prune` 支持 `dangling`、`until`、`labels` 和 `labelNe` 过滤器。`port_find_free` 默认使用 `host=127.0.0.1`、`start=1024`、`end=65535`、`count=1` 和 `protocol=tcp`，并返回 `engine` 为 `none`。
+`image_prune` 支持 `dangling`、`until`、`labels` 和 `labelNe` 过滤器。`volume_create` 支持 `driver`、`driverOptions` 和 `labels`；`volume_prune` 支持 `labels` 和 `labelNe` 过滤器。`port_find_free` 默认使用 `host=127.0.0.1`、`start=1024`、`end=65535`、`count=1` 和 `protocol=tcp`，并返回 `engine` 为 `none`。
 
 ## 配置
 

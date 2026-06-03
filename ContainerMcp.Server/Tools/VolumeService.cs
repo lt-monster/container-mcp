@@ -25,15 +25,23 @@ internal sealed class VolumeService
     public async Task<JsonObject> VolumeCreateAsync(JsonElement args, CancellationToken cancellationToken)
     {
         var name = ToolArgumentReader.RequireString(args, "name");
-        var labels = ToolArgumentReader.OptionalStringDictionary(args, "labels");
         var engine = await ResolveAsync(args, cancellationToken);
-        var body = new JsonObject { ["Name"] = name };
-        if (labels is { Count: > 0 })
-        {
-            body["Labels"] = JsonNodeExtensions.StringMapNode(labels);
-        }
+        var result = await _api.PostAsync(engine, "/volumes/create", VolumeToolRequests.BuildCreateBody(args, name), cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
 
-        var result = await _api.PostAsync(engine, "/volumes/create", body, cancellationToken);
+    public async Task<JsonObject> VolumeInspectAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var name = ToolArgumentReader.RequireString(args, "name");
+        var engine = await ResolveAsync(args, cancellationToken);
+        var result = await _api.GetAsync(engine, VolumeToolRequests.BuildInspectPath(name), cancellationToken);
+        return RuntimeToolSupport.Success(engine, result);
+    }
+
+    public async Task<JsonObject> VolumePruneAsync(JsonElement args, CancellationToken cancellationToken)
+    {
+        var engine = await ResolveAsync(args, cancellationToken);
+        var result = await _api.PostAsync(engine, VolumeToolRequests.BuildPrunePath(args), null, cancellationToken);
         return RuntimeToolSupport.Success(engine, result);
     }
 

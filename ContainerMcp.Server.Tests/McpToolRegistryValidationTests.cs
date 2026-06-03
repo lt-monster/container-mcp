@@ -50,6 +50,18 @@ public sealed class McpToolRegistryValidationTests
     }
 
     [Theory]
+    [InlineData("volume_inspect")]
+    [InlineData("volume_prune")]
+    public void List_IncludesVolumeManagementTool(string toolName)
+    {
+        var registry = CreateRegistry();
+
+        var tools = registry.List();
+
+        Assert.Contains(tools, tool => tool!["name"]!.GetValue<string>() == toolName);
+    }
+
+    [Theory]
     [InlineData("image_list", """{"unexpected":true}""", "Unknown argument 'unexpected'.")]
     [InlineData("image_pull", """{}""", "Missing required argument 'image'.")]
     [InlineData("image_remove", """{"imageIdOrName":"nginx","force":"true"}""", "Argument 'force' must be a boolean.")]
@@ -94,7 +106,11 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("container_create", """{"image":"nginx","healthcheck":{"test":"CMD"}}""", "Argument 'healthcheck.test' must be an array.")]
     [InlineData("container_create", """{"image":"nginx","healthcheck":{"unexpected":true}}""", "Unknown argument 'healthcheck.unexpected'.")]
     [InlineData("container_create", """{"image":"nginx","memoryBytes":"1024"}""", "Argument 'memoryBytes' must be an integer.")]
+    [InlineData("volume_inspect", """{}""", "Missing required argument 'name'.")]
+    [InlineData("volume_inspect", """{"name":true}""", "Argument 'name' must be a string.")]
     [InlineData("volume_create", """{"name":"cache","labels":{"ttl":30}}""", "Argument 'labels.ttl' must be a string.")]
+    [InlineData("volume_create", """{"name":"cache","driverOptions":{"size":30}}""", "Argument 'driverOptions.size' must be a string.")]
+    [InlineData("volume_prune", """{"labels":[1]}""", "Argument 'labels[0]' must be a string.")]
     public async Task CallAsync_RejectsInvalidArgumentsBeforeHandlerRuns(string toolName, string json, string expectedMessage)
     {
         var registry = CreateRegistry();
