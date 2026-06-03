@@ -110,10 +110,11 @@ Streaming and binary responses are bounded. `container_logs`, `container_logs_fo
 
 ## ⚙️ Configuration
 
-Options are read in this order: command-line arguments, environment variables, then defaults.
+Options are read in this order: command-line arguments, environment variables, configuration file, then defaults. Use `--config <path>` or `CONTAINER_MCP_CONFIG` to select a configuration file. If neither is set, the server tries to read `container-mcp.config.json` from the program directory (`AppContext.BaseDirectory`); a missing default file is ignored.
 
 | Option | Environment variable | Default |
 |---|---|---|
+| `--config` | `CONTAINER_MCP_CONFIG` | program-directory `container-mcp.config.json` if present |
 | `--transport` | `CONTAINER_MCP_TRANSPORT` | `http` |
 | `--urls` | `CONTAINER_MCP_HTTP_URLS` or `ASPNETCORE_URLS` | `http://127.0.0.1:7010` |
 | `--default-engine` | `CONTAINER_MCP_DEFAULT_ENGINE` | `auto` |
@@ -121,6 +122,50 @@ Options are read in this order: command-line arguments, environment variables, t
 | `--api-timeout-seconds` | `CONTAINER_MCP_API_TIMEOUT_SECONDS` | `10` |
 | `--api-probe-timeout-seconds` | `CONTAINER_MCP_API_PROBE_TIMEOUT_SECONDS` | `2` |
 | `--tool-timeout-seconds` | `CONTAINER_MCP_TOOL_TIMEOUT_SECONDS` | `15` |
+
+Example configuration:
+
+```json
+{
+  "version": 1,
+  "transport": "http",
+  "urls": "http://127.0.0.1:7010",
+  "defaultEngine": "auto",
+  "defaultTarget": "local",
+  "timeouts": {
+    "toolSeconds": 15,
+    "apiSeconds": 10,
+    "apiProbeSeconds": 2
+  },
+  "http": {
+    "maxRequestBodyBytes": 1048576,
+    "tokens": [
+      {
+        "id": "local-admin",
+        "value": "cmcp_xxx",
+        "enabled": true,
+        "createdAt": "2026-06-03T12:00:00Z",
+        "description": "Local admin client"
+      }
+    ]
+  }
+}
+```
+
+Generate and persist an HTTP bearer token:
+
+```powershell
+dotnet run --project ContainerMcp.Server -- token generate
+dotnet run --project ContainerMcp.Server -- token generate --config .\container-mcp.config.json --id local-admin --description "Local admin client"
+```
+
+When any enabled token exists, `POST /mcp` requires:
+
+```http
+Authorization: Bearer cmcp_xxx
+```
+
+Non-loopback HTTP bindings such as `http://0.0.0.0:7010` require at least one valid enabled token.
 
 Important runtime defaults:
 
@@ -160,7 +205,7 @@ container-mcp/
 - Only named or anonymous container volumes are allowed.
 - Only `target=local` is supported.
 - Remote targets, host bind mounts, unlimited real-time streaming, and registry authentication are not implemented in v1.
-- Binding HTTP transport to a non-loopback address prints a warning; use loopback URLs for normal local MCP clients.
+- Binding HTTP transport to a non-loopback address requires at least one valid HTTP bearer token; use loopback URLs for normal local MCP clients.
 - Image tar import/export uses explicit local file paths and bounded reads/writes.
 - stdio mode reserves stdout for JSON-RPC responses; diagnostics must go to stderr.
 - Long-running background work should not be added to MCP request paths.

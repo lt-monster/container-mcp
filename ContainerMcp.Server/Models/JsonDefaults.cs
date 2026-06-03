@@ -12,6 +12,7 @@ internal static class JsonDefaults
 [JsonSerializable(typeof(JsonObject))]
 [JsonSerializable(typeof(JsonArray))]
 [JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(ContainerMcp.Configuration.ContainerMcpConfiguration))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(long))]

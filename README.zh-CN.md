@@ -110,10 +110,11 @@ stdio transport 从 stdin 按行读取紧凑 JSON-RPC 消息，并且只把 JSON
 
 ## 配置
 
-配置读取顺序为：命令行参数、环境变量、默认值。
+配置读取优先级为：命令行参数、环境变量、配置文件、默认值。可以通过 `--config <path>` 或 `CONTAINER_MCP_CONFIG` 指定配置文件；如果都没有指定，程序会尝试读取程序同目录（`AppContext.BaseDirectory`）下的 `container-mcp.config.json`，默认文件不存在时会忽略。
 
 | 参数 | 环境变量 | 默认值 |
 |---|---|---|
+| `--config` | `CONTAINER_MCP_CONFIG` | 程序同目录下存在的 `container-mcp.config.json` |
 | `--transport` | `CONTAINER_MCP_TRANSPORT` | `http` |
 | `--urls` | `CONTAINER_MCP_HTTP_URLS` 或 `ASPNETCORE_URLS` | `http://127.0.0.1:7010` |
 | `--default-engine` | `CONTAINER_MCP_DEFAULT_ENGINE` | `auto` |
@@ -121,6 +122,50 @@ stdio transport 从 stdin 按行读取紧凑 JSON-RPC 消息，并且只把 JSON
 | `--api-timeout-seconds` | `CONTAINER_MCP_API_TIMEOUT_SECONDS` | `10` |
 | `--api-probe-timeout-seconds` | `CONTAINER_MCP_API_PROBE_TIMEOUT_SECONDS` | `2` |
 | `--tool-timeout-seconds` | `CONTAINER_MCP_TOOL_TIMEOUT_SECONDS` | `15` |
+
+配置文件示例：
+
+```json
+{
+  "version": 1,
+  "transport": "http",
+  "urls": "http://127.0.0.1:7010",
+  "defaultEngine": "auto",
+  "defaultTarget": "local",
+  "timeouts": {
+    "toolSeconds": 15,
+    "apiSeconds": 10,
+    "apiProbeSeconds": 2
+  },
+  "http": {
+    "maxRequestBodyBytes": 1048576,
+    "tokens": [
+      {
+        "id": "local-admin",
+        "value": "cmcp_xxx",
+        "enabled": true,
+        "createdAt": "2026-06-03T12:00:00Z",
+        "description": "Local admin client"
+      }
+    ]
+  }
+}
+```
+
+生成并持久化 HTTP bearer token：
+
+```powershell
+dotnet run --project ContainerMcp.Server -- token generate
+dotnet run --project ContainerMcp.Server -- token generate --config .\container-mcp.config.json --id local-admin --description "Local admin client"
+```
+
+当配置中存在 enabled token 时，`POST /mcp` 请求需要携带：
+
+```http
+Authorization: Bearer cmcp_xxx
+```
+
+如果 HTTP transport 绑定到非 loopback 地址，例如 `http://0.0.0.0:7010`，必须至少配置一个有效 token。
 
 重要默认值：
 

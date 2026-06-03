@@ -4,14 +4,28 @@ using ContainerMcp.Models;
 using ContainerMcp;
 using System.Text.Json.Nodes;
 
+if (IsTokenGenerateCommand(args))
+{
+    var tokenResult = HttpTokenGenerator.Generate(ReadTokenGenerateOptions(args, AppContext.BaseDirectory));
+    foreach (var token in tokenResult.Tokens)
+    {
+        Console.WriteLine(token);
+    }
+
+    Console.Error.WriteLine($"Updated token configuration: {tokenResult.ConfigPath}; httpTokens={tokenResult.TotalTokenCount}");
+    return;
+}
+
 var options = ContainerMcpOptions.From(args);
+HttpTokenValidator.ValidateForStartup(options);
 
 if (options.Transport == TransportMode.Stdio)
 {
     Console.Error.WriteLine(
         $"container-mcp started with stdio transport; waiting for JSON-RPC messages on stdin. " +
         $"defaultEngine={options.DefaultEngine.ToString().ToLowerInvariant()}, defaultTarget={options.DefaultTarget}, " +
-        $"toolTimeout={options.ToolTimeout.TotalSeconds:0}s, apiTimeout={options.ApiTimeout.TotalSeconds:0}s, apiProbeTimeout={options.ApiProbeTimeout.TotalSeconds:0}s");
+        $"toolTimeout={options.ToolTimeout.TotalSeconds:0}s, apiTimeout={options.ApiTimeout.TotalSeconds:0}s, apiProbeTimeout={options.ApiProbeTimeout.TotalSeconds:0}s, " +
+        $"httpTokens={options.HttpTokens.Count}");
     await using var services = ServiceGraph.Create(options);
     var stdio = services.GetRequiredService<StdioMcpServer>();
     await stdio.RunAsync(CancellationToken.None);
@@ -27,7 +41,8 @@ var app = builder.Build();
 Console.Error.WriteLine(
     $"container-mcp HTTP transport listening on {options.Urls}; MCP endpoint: {TrimTrailingSlash(options.Urls)}/mcp; " +
     $"defaultEngine={options.DefaultEngine.ToString().ToLowerInvariant()}, defaultTarget={options.DefaultTarget}, " +
-    $"toolTimeout={options.ToolTimeout.TotalSeconds:0}s, apiTimeout={options.ApiTimeout.TotalSeconds:0}s, apiProbeTimeout={options.ApiProbeTimeout.TotalSeconds:0}s");
+    $"toolTimeout={options.ToolTimeout.TotalSeconds:0}s, apiTimeout={options.ApiTimeout.TotalSeconds:0}s, apiProbeTimeout={options.ApiProbeTimeout.TotalSeconds:0}s, " +
+    $"httpTokens={options.HttpTokens.Count}");
 if (ProgramSupport.HasNonLoopbackBinding(options.Urls))
 {
     Console.Error.WriteLine(ProgramSupport.BuildNonLoopbackWarning(options));
@@ -40,8 +55,8 @@ app.MapGet("/", () => JsonNodeExtensions.JsonResult(new JsonObject
     ["endpoint"] = "/mcp"
 }));
 
-app.MapPost("/mcp", (HttpContext httpContext, McpJsonRpcHandler handler) =>
-    McpHttpEndpoint.HandlePostAsync(httpContext, handler));
+app.MapPost("/mcp", (HttpContext httpContext, McpJsonRpcHandler handler, ContainerMcpOptions options) =>
+    McpHttpEndpoint.HandlePostAsync(httpContext, handler, options));
 app.MapGet("/mcp", McpHttpEndpoint.HandleGet);
 app.MapMethods("/mcp", ["DELETE", "PUT", "PATCH"], McpHttpEndpoint.HandleUnsupportedMethod);
 
@@ -51,6 +66,25 @@ static string TrimTrailingSlash(string urls)
 {
     var firstUrl = urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? urls;
     return firstUrl.TrimEnd('/');
+}
+
+static bool IsTokenGenerateCommand(string[] args) =>
+    args.Length >= 2
+    && string.Equals(args[0], "token", StringComparison.OrdinalIgnoreCase)
+    && string.Equals(args[1], "generate", StringComparison.OrdinalIgnoreCase);
+
+static HttpTokenGenerateOptions ReadTokenGenerateOptions(string[] args, string appBaseDirectory)
+{
+    var configPath = ContainerMcpConfigurationLoader.ReadOption(args, "--config")
+        ?? HttpTokenGenerator.DefaultConfigPath(appBaseDirectory);
+    var count = int.TryParse(ContainerMcpConfigurationLoader.ReadOption(args, "--count"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedCount)
+        ? parsedCount
+        : 1;
+    return new HttpTokenGenerateOptions(
+        configPath,
+        count,
+        ContainerMcpConfigurationLoader.ReadOption(args, "--id"),
+        ContainerMcpConfigurationLoader.ReadOption(args, "--description"));
 }
 
 internal sealed class ServiceGraph : IAsyncDisposable

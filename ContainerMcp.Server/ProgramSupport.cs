@@ -31,5 +31,5 @@ internal static class ProgramSupport
 
     public static string BuildNonLoopbackWarning(ContainerMcpOptions options) =>
         $"Warning: container-mcp HTTP transport is bound to a non-loopback address ({options.Urls}). " +
-        "Only expose this endpoint on trusted local networks; remote target and HTTP authentication are not implemented in v1.";
+        "Only expose this endpoint on trusted local networks and protect /mcp with bearer tokens.";
 }

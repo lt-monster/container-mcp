@@ -90,6 +90,34 @@ public sealed class McpHttpEndpointTests
     }
 
     [Fact]
+    public async Task HandlePostAsync_RejectsMissingBearerTokenWhenConfigured()
+    {
+        var context = HttpContextWithBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""");
+        var options = OptionsWithToken("cmcp_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN");
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), options);
+
+        var result = await McpHttpEndpoint.HandlePostAsync(context, handler, options);
+        await result.ExecuteAsync(context);
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_AllowsMatchingBearerTokenWhenConfigured()
+    {
+        const string token = "cmcp_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN";
+        var context = HttpContextWithBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""");
+        context.Request.Headers.Authorization = "Bearer " + token;
+        var options = OptionsWithToken(token);
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), options);
+
+        var result = await McpHttpEndpoint.HandlePostAsync(context, handler, options);
+        await result.ExecuteAsync(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+    }
+
+    [Fact]
     public async Task HandleUnsupportedMethod_ReturnsMethodNotAllowed()
     {
         var context = new DefaultHttpContext();
@@ -115,6 +143,18 @@ public sealed class McpHttpEndpointTests
         new ServiceCollection()
             .AddLogging()
             .BuildServiceProvider();
+
+    private static ContainerMcpOptions OptionsWithToken(string token) =>
+        new(
+            TransportMode.Http,
+            "http://127.0.0.1:7010",
+            ContainerEngine.Auto,
+            "local",
+            TimeSpan.FromSeconds(10),
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(15),
+            ProgramSupport.MaxMcpHttpRequestBodyBytes,
+            [new HttpToken("default", token, true, null, null)]);
 
     private sealed class EmptyToolRegistry : IMcpToolRegistry
     {

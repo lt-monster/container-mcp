@@ -1,13 +1,25 @@
 using ContainerMcp.Models;
+using ContainerMcp.Configuration;
 
 namespace ContainerMcp.Mcp;
 
 internal static class McpHttpEndpoint
 {
     public static async Task<IResult> HandlePostAsync(HttpContext httpContext, McpJsonRpcHandler handler, long maxRequestBodyBytes = ProgramSupport.MaxMcpHttpRequestBodyBytes)
+        => await HandlePostAsync(httpContext, handler, options: null, maxRequestBodyBytes);
+
+    public static async Task<IResult> HandlePostAsync(HttpContext httpContext, McpJsonRpcHandler handler, ContainerMcpOptions? options)
+        => await HandlePostAsync(httpContext, handler, options, options?.MaxHttpRequestBodyBytes ?? ProgramSupport.MaxMcpHttpRequestBodyBytes);
+
+    public static async Task<IResult> HandlePostAsync(HttpContext httpContext, McpJsonRpcHandler handler, ContainerMcpOptions? options, long maxRequestBodyBytes)
     {
         try
         {
+            if (options is not null && !HttpTokenValidator.IsAuthorized(options, httpContext.Request.Headers.Authorization.ToString()))
+            {
+                return Results.Unauthorized();
+            }
+
             if (httpContext.Request.ContentLength is > 0 && httpContext.Request.ContentLength > maxRequestBodyBytes)
             {
                 return JsonNodeExtensions.JsonResult(

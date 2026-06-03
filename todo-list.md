@@ -88,7 +88,7 @@
 ## 10. 安全与运维
 
 - [x] **10.1** 当 HTTP transport 绑定到非 loopback 地址时，增加警告或防护。（现在实现）
-- [ ] **10.2** 在推荐远程访问前，为 HTTP transport 设计认证或 token 保护。（后续实现）
+- [x] **10.2** 在推荐远程访问前，为 HTTP transport 增加统一配置文件和 Bearer token 保护；token 过期暂不实现。（现在实现）
 - [x] **10.3** 为 HTTP JSON 请求体增加大小限制。（现在实现）
 - [ ] **10.4** 如果 HTTP transport 暴露到 localhost 以外，增加 rate limiting。（后续实现）
 - [ ] **10.5** 如果计划以托管服务运行，增加 health/readiness 元数据 endpoint。（后续实现）

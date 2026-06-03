@@ -69,6 +69,8 @@ Desktop.ini
 .env
 .env.*
 !.env.example
+container-mcp.config.json
+container-mcp.*.config.json
 
 # Publish/package outputs
 publish/

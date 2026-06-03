@@ -77,6 +77,167 @@ public sealed class ContainerMcpOptionsTests
     }
 
     [Fact]
+    public void From_UsesExplicitConfigFile()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var configPath = directory.WriteConfig(
+            """
+            {
+              "version": 1,
+              "transport": "stdio",
+              "urls": "http://127.0.0.1:8123",
+              "defaultEngine": "docker",
+              "defaultTarget": "local",
+              "timeouts": {
+                "toolSeconds": 31,
+                "apiSeconds": 21,
+                "apiProbeSeconds": 3
+              },
+              "http": {
+                "maxRequestBodyBytes": 2048,
+                "tokens": [
+                  {
+                    "id": "enabled",
+                    "value": "cmcp_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN",
+                    "enabled": true,
+                    "createdAt": "2026-06-03T00:00:00Z",
+                    "description": "enabled token"
+                  },
+                  {
+                    "id": "disabled",
+                    "value": "cmcp_DISABLEDabcdefghijklmnopqrstuvwxyzABCDEF",
+                    "enabled": false
+                  }
+                ]
+              }
+            }
+            """);
+
+        var options = ContainerMcpOptions.From(["--config", configPath], appBaseDirectory: directory.Path);
+
+        Assert.Equal(TransportMode.Stdio, options.Transport);
+        Assert.Equal("http://127.0.0.1:8123", options.Urls);
+        Assert.Equal(ContainerEngine.Docker, options.DefaultEngine);
+        Assert.Equal(TimeSpan.FromSeconds(31), options.ToolTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(21), options.ApiTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(3), options.ApiProbeTimeout);
+        Assert.Equal(2048, options.MaxHttpRequestBodyBytes);
+        Assert.Single(options.HttpTokens);
+        Assert.Equal("enabled", options.HttpTokens[0].Id);
+    }
+
+    [Fact]
+    public void From_UsesDefaultConfigFileFromAppBaseDirectory()
+    {
+        using var directory = TemporaryDirectory.Create();
+        directory.WriteDefaultConfig("""{"version":1,"urls":"http://127.0.0.1:8124","defaultEngine":"docker"}""");
+
+        var options = ContainerMcpOptions.From([], appBaseDirectory: directory.Path);
+
+        Assert.Equal("http://127.0.0.1:8124", options.Urls);
+        Assert.Equal(ContainerEngine.Docker, options.DefaultEngine);
+    }
+
+    [Fact]
+    public void From_UsesConfigPathFromEnvironment()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var configPath = directory.WriteConfig("""{"version":1,"urls":"http://127.0.0.1:8127"}""");
+        using var environment = new EnvironmentScope()
+            .Set("CONTAINER_MCP_CONFIG", configPath);
+
+        var options = ContainerMcpOptions.From([], appBaseDirectory: directory.Path);
+
+        Assert.Equal("http://127.0.0.1:8127", options.Urls);
+    }
+
+    [Fact]
+    public void From_ThrowsForInvalidEnabledHttpToken()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var configPath = directory.WriteConfig(
+            """
+            {
+              "version": 1,
+              "http": {
+                "tokens": [
+                  {
+                    "id": "weak",
+                    "value": "changeme",
+                    "enabled": true
+                  }
+                ]
+              }
+            }
+            """);
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ContainerMcpOptions.From(["--config", configPath], appBaseDirectory: directory.Path));
+
+        Assert.Contains("Invalid HTTP bearer token", exception.Message);
+        Assert.Contains("weak", exception.Message);
+    }
+
+    [Fact]
+    public void From_IgnoresMissingDefaultConfigFile()
+    {
+        using var directory = TemporaryDirectory.Create();
+
+        var options = ContainerMcpOptions.From([], appBaseDirectory: directory.Path);
+
+        Assert.Equal("http://127.0.0.1:7010", options.Urls);
+    }
+
+    [Fact]
+    public void From_ThrowsForMissingExplicitConfigFile()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var missingPath = Path.Combine(directory.Path, "missing.json");
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ContainerMcpOptions.From(["--config", missingPath], appBaseDirectory: directory.Path));
+
+        Assert.Contains("Configuration file not found", exception.Message);
+    }
+
+    [Fact]
+    public void From_UsesCliThenEnvironmentThenConfigThenDefaults()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var configPath = directory.WriteConfig(
+            """
+            {
+              "version": 1,
+              "transport": "stdio",
+              "urls": "http://127.0.0.1:8125",
+              "defaultEngine": "podman",
+              "defaultTarget": "config-target",
+              "timeouts": {
+                "toolSeconds": 44,
+                "apiSeconds": 33,
+                "apiProbeSeconds": 22
+              }
+            }
+            """);
+        using var environment = new EnvironmentScope()
+            .Set("CONTAINER_MCP_TRANSPORT", "http")
+            .Set("CONTAINER_MCP_DEFAULT_ENGINE", "docker")
+            .Set("CONTAINER_MCP_API_TIMEOUT_SECONDS", "11");
+
+        var options = ContainerMcpOptions.From(
+            ["--config", configPath, "--urls", "http://127.0.0.1:8126"],
+            appBaseDirectory: directory.Path);
+
+        Assert.Equal(TransportMode.Http, options.Transport);
+        Assert.Equal("http://127.0.0.1:8126", options.Urls);
+        Assert.Equal(ContainerEngine.Docker, options.DefaultEngine);
+        Assert.Equal("config-target", options.DefaultTarget);
+        Assert.Equal(TimeSpan.FromSeconds(11), options.ApiTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(11), options.ApiProbeTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(44), options.ToolTimeout);
+    }
+
+    [Fact]
     public void From_ClampsTimeoutsAndNormalizesOrdering()
     {
         var options = ContainerMcpOptions.From(
@@ -136,6 +297,40 @@ public sealed class ContainerMcpOptionsTests
             foreach (var pair in _original)
             {
                 Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
+        }
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        private TemporaryDirectory(string path) => Path = path;
+
+        public string Path { get; }
+
+        public static TemporaryDirectory Create() =>
+            new(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "container-mcp-tests-" + Guid.NewGuid().ToString("N")));
+
+        public string WriteConfig(string json)
+        {
+            Directory.CreateDirectory(Path);
+            var configPath = System.IO.Path.Combine(Path, "config.json");
+            File.WriteAllText(configPath, json);
+            return configPath;
+        }
+
+        public string WriteDefaultConfig(string json)
+        {
+            Directory.CreateDirectory(Path);
+            var configPath = System.IO.Path.Combine(Path, "container-mcp.config.json");
+            File.WriteAllText(configPath, json);
+            return configPath;
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
             }
         }
     }
