@@ -160,7 +160,7 @@ internal sealed class PortDiscoveryService
         var array = new JsonArray();
         foreach (var value in values)
         {
-            array.Add(value);
+            array.AddNode(JsonValue.Create(value));
         }
 
         return array;

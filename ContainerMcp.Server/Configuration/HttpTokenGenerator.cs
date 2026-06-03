@@ -41,7 +41,7 @@ internal static class HttpTokenGenerator
             while (!existing.Add(value));
 
             generated.Add(value);
-            tokens.Add(new JsonObject
+            tokens.AddNode(new JsonObject
             {
                 ["id"] = TokenId(options.Id, i, count),
                 ["value"] = value,
