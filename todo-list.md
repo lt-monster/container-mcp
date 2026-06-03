@@ -59,13 +59,13 @@
 
 ## 7. 网络工具
 
-- [ ] **7.1** 新增 `network_list`。（后续实现）
-- [ ] **7.2** 新增 `network_inspect`。（后续实现）
-- [ ] **7.3** 新增 `network_create`。（后续实现）
-- [ ] **7.4** 新增 `network_remove`。（后续实现）
-- [ ] **7.5** 新增 `network_connect`。（后续实现）
-- [ ] **7.6** 新增 `network_disconnect`。（后续实现）
-- [ ] **7.7** 新增 `network_prune`。（后续实现）
+- [x] **7.1** 新增 `network_list`。（现在实现）
+- [x] **7.2** 新增 `network_inspect`。（现在实现）
+- [x] **7.3** 新增 `network_create`。（现在实现）
+- [x] **7.4** 新增 `network_remove`。（现在实现）
+- [x] **7.5** 新增 `network_connect`。（现在实现）
+- [x] **7.6** 新增 `network_disconnect`。（现在实现）
+- [x] **7.7** 新增 `network_prune`。（现在实现）
 
 ## 8. 端口发现
 

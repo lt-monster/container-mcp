@@ -410,6 +410,7 @@ internal sealed class ContainerApiAdapter
             HttpStatusCode.NotFound when path.Contains("/containers/", StringComparison.OrdinalIgnoreCase) => McpErrorCode.ContainerNotFound,
             HttpStatusCode.NotFound when path.Contains("/images/", StringComparison.OrdinalIgnoreCase) => McpErrorCode.ImageNotFound,
             HttpStatusCode.NotFound when path.Contains("/volumes/", StringComparison.OrdinalIgnoreCase) => McpErrorCode.VolumeNotFound,
+            HttpStatusCode.NotFound when path.Contains("/networks/", StringComparison.OrdinalIgnoreCase) => McpErrorCode.NetworkNotFound,
             HttpStatusCode.BadRequest => McpErrorCode.InvalidArgument,
             HttpStatusCode.InternalServerError => McpErrorCode.OperationFailed,
             _ => McpErrorCode.EngineUnavailable

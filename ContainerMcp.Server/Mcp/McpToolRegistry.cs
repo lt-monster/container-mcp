@@ -16,15 +16,17 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
     private readonly ImageToolService _images;
     private readonly ContainerToolService _containers;
     private readonly VolumeService _volumes;
+    private readonly NetworkService _networks;
     private readonly PortDiscoveryService _ports;
     private readonly DockerDiagnosticsService _diagnostics;
     private readonly Dictionary<string, ToolEntry> _tools;
 
-    public McpToolRegistry(ImageToolService images, ContainerToolService containers, VolumeService volumes, PortDiscoveryService ports, DockerDiagnosticsService diagnostics)
+    public McpToolRegistry(ImageToolService images, ContainerToolService containers, VolumeService volumes, NetworkService networks, PortDiscoveryService ports, DockerDiagnosticsService diagnostics)
     {
         _images = images;
         _containers = containers;
         _volumes = volumes;
+        _networks = networks;
         _ports = ports;
         _diagnostics = diagnostics;
         _tools = BuildTools();
@@ -140,6 +142,13 @@ internal sealed class McpToolRegistry : IMcpToolRegistry
             T("volume_create", "Create a named volume.", new JsonObject { ["name"] = StringSchema("Volume name."), ["driver"] = StringSchema("Volume driver."), ["driverOptions"] = ObjectMapSchema(), ["labels"] = ObjectMapSchema() }, ["name"], _volumes.VolumeCreateAsync),
             T("volume_prune", "Prune unused local container volumes.", new JsonObject { ["labels"] = StringArraySchema("Label filters."), ["labelNe"] = StringArraySchema("Negative label filters.") }, null, _volumes.VolumePruneAsync),
             T("volume_remove", "Remove a volume.", new JsonObject { ["name"] = StringSchema("Volume name."), ["force"] = BoolSchema() }, ["name"], _volumes.VolumeRemoveAsync),
+            T("network_list", "List container networks.", new JsonObject(), null, _networks.NetworkListAsync),
+            T("network_inspect", "Inspect a container network.", new JsonObject { ["idOrName"] = StringSchema("Network ID or name.") }, ["idOrName"], _networks.NetworkInspectAsync),
+            T("network_create", "Create a container network.", new JsonObject { ["name"] = StringSchema("Network name."), ["driver"] = StringSchema("Network driver."), ["internal"] = BoolSchema(), ["attachable"] = BoolSchema(), ["enableIPv6"] = BoolSchema(), ["options"] = ObjectMapSchema(), ["labels"] = ObjectMapSchema() }, ["name"], _networks.NetworkCreateAsync),
+            T("network_remove", "Remove a container network.", new JsonObject { ["idOrName"] = StringSchema("Network ID or name.") }, ["idOrName"], _networks.NetworkRemoveAsync),
+            T("network_connect", "Connect a container to a network.", new JsonObject { ["network"] = StringSchema("Network ID or name."), ["container"] = StringSchema("Container ID or name."), ["aliases"] = StringArraySchema("Network-scoped aliases."), ["ipv4Address"] = StringSchema("IPv4 address for this endpoint."), ["ipv6Address"] = StringSchema("IPv6 address for this endpoint.") }, ["network", "container"], _networks.NetworkConnectAsync),
+            T("network_disconnect", "Disconnect a container from a network.", new JsonObject { ["network"] = StringSchema("Network ID or name."), ["container"] = StringSchema("Container ID or name."), ["force"] = BoolSchema() }, ["network", "container"], _networks.NetworkDisconnectAsync),
+            T("network_prune", "Prune unused local container networks.", new JsonObject { ["until"] = StringSchema("Prune networks created before this timestamp or duration."), ["labels"] = StringArraySchema("Label filters."), ["labelNe"] = StringArraySchema("Negative label filters.") }, null, _networks.NetworkPruneAsync),
             T("docker_diagnose", "Diagnose Docker Desktop endpoint resolution and probe status on Windows.", new JsonObject(), null, (_, cancellationToken) => _diagnostics.DiagnoseAsync(cancellationToken)),
             T("port_find_free", "Find free local host ports.", new()
             {

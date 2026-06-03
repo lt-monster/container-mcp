@@ -19,6 +19,7 @@ internal static class ContainerMcpServiceCollectionExtensions
         services.AddSingleton<ImageToolService>();
         services.AddSingleton<ContainerToolService>();
         services.AddSingleton<VolumeService>();
+        services.AddSingleton<NetworkService>();
         services.AddSingleton<PortDiscoveryService>();
         services.AddSingleton<DockerDiagnosticsService>();
         services.AddSingleton<McpToolRegistry>();

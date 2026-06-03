@@ -62,6 +62,23 @@ public sealed class McpToolRegistryValidationTests
     }
 
     [Theory]
+    [InlineData("network_list")]
+    [InlineData("network_inspect")]
+    [InlineData("network_create")]
+    [InlineData("network_remove")]
+    [InlineData("network_connect")]
+    [InlineData("network_disconnect")]
+    [InlineData("network_prune")]
+    public void List_IncludesNetworkManagementTool(string toolName)
+    {
+        var registry = CreateRegistry();
+
+        var tools = registry.List();
+
+        Assert.Contains(tools, tool => tool!["name"]!.GetValue<string>() == toolName);
+    }
+
+    [Theory]
     [InlineData("image_list", """{"unexpected":true}""", "Unknown argument 'unexpected'.")]
     [InlineData("image_pull", """{}""", "Missing required argument 'image'.")]
     [InlineData("image_remove", """{"imageIdOrName":"nginx","force":"true"}""", "Argument 'force' must be a boolean.")]
@@ -111,6 +128,17 @@ public sealed class McpToolRegistryValidationTests
     [InlineData("volume_create", """{"name":"cache","labels":{"ttl":30}}""", "Argument 'labels.ttl' must be a string.")]
     [InlineData("volume_create", """{"name":"cache","driverOptions":{"size":30}}""", "Argument 'driverOptions.size' must be a string.")]
     [InlineData("volume_prune", """{"labels":[1]}""", "Argument 'labels[0]' must be a string.")]
+    [InlineData("network_list", """{"unexpected":true}""", "Unknown argument 'unexpected'.")]
+    [InlineData("network_inspect", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("network_create", """{}""", "Missing required argument 'name'.")]
+    [InlineData("network_create", """{"name":"app","internal":"true"}""", "Argument 'internal' must be a boolean.")]
+    [InlineData("network_create", """{"name":"app","options":{"mtu":1500}}""", "Argument 'options.mtu' must be a string.")]
+    [InlineData("network_remove", """{}""", "Missing required argument 'idOrName'.")]
+    [InlineData("network_connect", """{}""", "Missing required argument 'network'.")]
+    [InlineData("network_connect", """{"network":"app"}""", "Missing required argument 'container'.")]
+    [InlineData("network_connect", """{"network":"app","container":"web","aliases":[1]}""", "Argument 'aliases[0]' must be a string.")]
+    [InlineData("network_disconnect", """{"network":"app","container":"web","force":"true"}""", "Argument 'force' must be a boolean.")]
+    [InlineData("network_prune", """{"labels":[1]}""", "Argument 'labels[0]' must be a string.")]
     public async Task CallAsync_RejectsInvalidArgumentsBeforeHandlerRuns(string toolName, string json, string expectedMessage)
     {
         var registry = CreateRegistry();
@@ -138,6 +166,7 @@ public sealed class McpToolRegistryValidationTests
             new ImageToolService(runtime, api),
             new ContainerToolService(runtime, api, createRequestBuilder),
             new VolumeService(runtime, api),
+            new NetworkService(runtime, api),
             new PortDiscoveryService(),
             new DockerDiagnosticsService(options, factory));
     }

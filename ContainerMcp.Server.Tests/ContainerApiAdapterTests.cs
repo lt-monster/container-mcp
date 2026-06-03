@@ -35,6 +35,19 @@ public sealed class ContainerApiAdapterTests
     }
 
     [Fact]
+    public async Task GetAsync_MapsNetworkNotFoundResponse()
+    {
+        await using var server = await FakeHttpServer.StartAsync("HTTP/1.1 404 Not Found\r\nContent-Length: 29\r\n\r\n{\"message\":\"No such network\"}");
+        var adapter = new ContainerApiAdapter(new DockerApiClientFactory(ContainerMcpOptions.From([])), ContainerMcpOptions.From([]));
+
+        var exception = await Assert.ThrowsAsync<ContainerMcpException>(
+            () => adapter.GetAsync(server.Engine, "/networks/missing", CancellationToken.None));
+
+        Assert.Equal(McpErrorCode.NetworkNotFound, exception.ErrorCode);
+        Assert.Equal("No such network", exception.Message);
+    }
+
+    [Fact]
     public async Task GetBytesForDurationAsync_ReturnsBytesWhenDurationElapses()
     {
         await using var server = await FakeHttpServer.StartStreamingAsync(async stream =>

@@ -81,6 +81,13 @@ Current tools:
 - `volume_create`
 - `volume_prune`
 - `volume_remove`
+- `network_list`
+- `network_inspect`
+- `network_create`
+- `network_remove`
+- `network_connect`
+- `network_disconnect`
+- `network_prune`
 - `docker_diagnose`
 - `port_find_free`
 
