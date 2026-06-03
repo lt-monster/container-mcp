@@ -2,8 +2,8 @@
 
 ## 1. MCP / JSON-RPC 协议
 
-- [ ] **1.1** 为 HTTP 和 stdio 传输增加 JSON-RPC batch request 支持。（后续实现）
-- [ ] **1.2** 复查 MCP HTTP 行为，不只支持简单的 `POST /mcp`，还要评估 session handling 和 streamable HTTP 兼容性。（后续实现）
+- [x] **1.1** 为 HTTP 和 stdio 传输增加 JSON-RPC batch request 支持。（后续实现）
+- [x] **1.2** 复查 MCP HTTP 行为，不只支持简单的 `POST /mcp`，还要评估 session handling 和 streamable HTTP 兼容性。（后续实现）
 - [ ] **1.3** 设计长时间运行或流式操作在 MCP 层的表达方式。（后续实现）
 - [x] **1.4** 在工具执行前增加 schema 校验，真正落实 `additionalProperties: false`、必填字段和类型约束。（现在实现）
 - [x] **1.5** 为不同错误返回更精确的 JSON-RPC error code，避免所有 `ContainerMcpException` 都映射到 `-32000`。（现在实现）

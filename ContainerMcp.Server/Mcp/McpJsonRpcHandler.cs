@@ -15,12 +15,32 @@ internal sealed class McpJsonRpcHandler
         _options = options;
     }
 
+    public async Task<JsonNode?> HandleMessageAsync(JsonElement message, CancellationToken cancellationToken)
+    {
+        return message.ValueKind switch
+        {
+            JsonValueKind.Object => await HandleAsync(message, cancellationToken),
+            JsonValueKind.Array => await HandleBatchAsync(message, cancellationToken),
+            _ => Error(null, -32600, "Invalid JSON-RPC request.")
+        };
+    }
+
     public async Task<JsonObject?> HandleAsync(JsonElement request, CancellationToken cancellationToken)
     {
+        if (request.ValueKind != JsonValueKind.Object)
+        {
+            return Error(null, -32600, "Invalid JSON-RPC request.");
+        }
+
         var hasId = request.TryGetProperty("id", out var idProperty);
         var id = hasId ? idProperty.Clone() : default(JsonElement?);
         try
         {
+            if (IsJsonRpcResponse(request))
+            {
+                return null;
+            }
+
             if (!request.TryGetProperty("method", out var methodProperty) || methodProperty.ValueKind != JsonValueKind.String)
             {
                 return hasId ? Error(id, -32600, "Invalid JSON-RPC request.") : null;
@@ -58,6 +78,29 @@ internal sealed class McpJsonRpcHandler
                 ["message"] = ex.Message
             }) : null;
         }
+    }
+
+    private async Task<JsonNode?> HandleBatchAsync(JsonElement batch, CancellationToken cancellationToken)
+    {
+        if (batch.GetArrayLength() == 0)
+        {
+            return Error(null, -32600, "Invalid JSON-RPC batch request.");
+        }
+
+        var responses = new JsonArray();
+        foreach (var item in batch.EnumerateArray())
+        {
+            JsonObject? response = item.ValueKind == JsonValueKind.Object
+                ? await HandleAsync(item, cancellationToken)
+                : Error(null, -32600, "Invalid JSON-RPC request.");
+
+            if (response is not null)
+            {
+                responses.AddNode(response);
+            }
+        }
+
+        return responses.Count == 0 ? null : responses;
     }
 
     public static JsonObject Error(JsonElement? id, int code, string message, JsonNode? data = null) => new()
@@ -185,6 +228,11 @@ internal sealed class McpJsonRpcHandler
         using var document = JsonDocument.Parse("{}");
         return document.RootElement.Clone();
     }
+
+    private static bool IsJsonRpcResponse(JsonElement request) =>
+        !request.TryGetProperty("method", out _) &&
+        request.TryGetProperty("id", out _) &&
+        (request.TryGetProperty("result", out _) || request.TryGetProperty("error", out _));
 
     private static JsonNode? JsonId(JsonElement? id)
     {

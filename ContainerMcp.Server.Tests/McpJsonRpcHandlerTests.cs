@@ -10,6 +10,51 @@ namespace ContainerMcp.Server.Tests;
 public sealed class McpJsonRpcHandlerTests
 {
     [Fact]
+    public async Task HandleMessageAsync_ReturnsBatchResponsesAndSkipsNotifications()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse(
+            """
+            [
+              {"jsonrpc":"2.0","id":1,"method":"ping"},
+              {"jsonrpc":"2.0","method":"notifications/initialized"},
+              {"jsonrpc":"2.0","id":2,"method":"tools/list"}
+            ]
+            """);
+
+        var response = await handler.HandleMessageAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        var array = Assert.IsType<JsonArray>(response);
+        Assert.Equal(2, array.Count);
+        Assert.Equal(1, array[0]!["id"]!.GetValue<long>());
+        Assert.Equal(2, array[1]!["id"]!.GetValue<long>());
+    }
+
+    [Fact]
+    public async Task HandleMessageAsync_ReturnsInvalidRequestForEmptyBatch()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse("[]");
+
+        var response = await handler.HandleMessageAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal(-32600, response["error"]!["code"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task HandleMessageAsync_AcceptsJsonRpcResponseWithoutOutput()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse("""{"jsonrpc":"2.0","id":1,"result":{}}""");
+
+        var response = await handler.HandleMessageAsync(document.RootElement, CancellationToken.None);
+
+        Assert.Null(response);
+    }
+
+    [Fact]
     public async Task HandleAsync_ReturnsNoResponseForNotificationWithoutId()
     {
         var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From(["--transport", "stdio"]));

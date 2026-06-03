@@ -35,27 +35,9 @@ app.MapGet("/", () => JsonNodeExtensions.JsonResult(new JsonObject
     ["endpoint"] = "/mcp"
 }));
 
-app.MapPost("/mcp", async (HttpContext httpContext, McpJsonRpcHandler handler) =>
-{
-    try
-    {
-        using var document = await JsonDocument.ParseAsync(httpContext.Request.Body, cancellationToken: httpContext.RequestAborted);
-        var response = await handler.HandleAsync(document.RootElement, httpContext.RequestAborted);
-        if (response is null)
-        {
-            return Results.NoContent();
-        }
-
-        return JsonNodeExtensions.JsonResult(response);
-    }
-    catch (JsonException ex)
-    {
-        return JsonNodeExtensions.JsonResult(McpJsonRpcHandler.Error(null, -32700, ex.Message), StatusCodes.Status400BadRequest);
-    }
-});
-
-app.MapMethods("/mcp", ["GET", "DELETE", "PUT", "PATCH"], () =>
-    JsonNodeExtensions.JsonResult(McpJsonRpcHandler.Error(null, -32600, "Unsupported MCP HTTP method."), StatusCodes.Status405MethodNotAllowed));
+app.MapPost("/mcp", McpHttpEndpoint.HandlePostAsync);
+app.MapGet("/mcp", McpHttpEndpoint.HandleGet);
+app.MapMethods("/mcp", ["DELETE", "PUT", "PATCH"], McpHttpEndpoint.HandleUnsupportedMethod);
 
 await app.RunAsync();
 

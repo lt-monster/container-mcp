@@ -34,11 +34,11 @@ internal sealed class StdioMcpServer
                 continue;
             }
 
-            JsonObject? response;
+            JsonNode? response;
             try
             {
                 using var document = JsonDocument.Parse(line);
-                response = await _handler.HandleAsync(document.RootElement, cancellationToken);
+                response = await _handler.HandleMessageAsync(document.RootElement, cancellationToken);
             }
             catch (JsonException ex)
             {
