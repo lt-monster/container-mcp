@@ -6,6 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>container-mcp</AssemblyName>
     <RootNamespace>ContainerMcp</RootNamespace>
+    <Version>1.0.0</Version>
+    <PackageVersion>1.0.0</PackageVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Authors>container-mcp contributors</Authors>
+    <Product>container-mcp</Product>
     <PublishAot>false</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <TrimMode>full</TrimMode>

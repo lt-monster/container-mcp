@@ -221,7 +221,7 @@ internal sealed class McpJsonRpcHandler
         ["serverInfo"] = new JsonObject
         {
             ["name"] = "container-mcp",
-            ["version"] = "0.1.0"
+            ["version"] = ServerVersion.Current
         },
         ["capabilities"] = new JsonObject
         {

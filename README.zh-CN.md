@@ -6,6 +6,8 @@
 
 **container-mcp** 是一个面向本地容器运行时的轻量级 MCP Server。它通过 MCP JSON-RPC 暴露 Docker 兼容的镜像、容器、卷、诊断和本地端口发现能力，让 AI 助手或开发工具可以用结构化方式检查和操作本地容器环境。
 
+当前版本：`1.0.0`。
+
 ## 功能概览
 
 - MCP JSON-RPC server，支持 `initialize`、`ping`、`tools/list` 和 `tools/call`。

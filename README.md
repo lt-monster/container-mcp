@@ -6,6 +6,8 @@
 
 **container-mcp** is a lightweight MCP server for local container runtimes. It exposes Docker-compatible container, image, volume, diagnostics, and port-discovery operations through MCP JSON-RPC so AI assistants and developer tools can inspect and operate local containers through a structured interface.
 
+Current release: `1.0.0`.
+
 ## ✨ Features
 
 - 🧠 MCP JSON-RPC server with `initialize`, `ping`, `tools/list`, and `tools/call` support.

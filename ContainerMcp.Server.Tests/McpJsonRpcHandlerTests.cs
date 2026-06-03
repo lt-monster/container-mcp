@@ -32,6 +32,19 @@ public sealed class McpJsonRpcHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_ReturnsReleaseVersionInInitializeServerInfo()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse("""{"jsonrpc":"2.0","id":1,"method":"initialize"}""");
+
+        var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal("container-mcp", response["result"]!["serverInfo"]!["name"]!.GetValue<string>());
+        Assert.Equal("1.0.0", response["result"]!["serverInfo"]!["version"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task HandleMessageAsync_ReturnsInvalidRequestForEmptyBatch()
     {
         var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
