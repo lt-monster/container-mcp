@@ -174,7 +174,7 @@ internal sealed class DockerApiClientFactory : IDisposable
             : null;
     }
 
-    private static bool TryParseHost(ContainerEngine engine, string? host, out RuntimeEndpoint endpoint)
+    internal static bool TryParseHost(ContainerEngine engine, string? host, out RuntimeEndpoint endpoint)
     {
         endpoint = null!;
         if (string.IsNullOrWhiteSpace(host))

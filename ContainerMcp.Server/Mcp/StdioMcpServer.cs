@@ -14,6 +14,11 @@ internal sealed class StdioMcpServer
     {
         var input = Console.OpenStandardInput();
         var output = Console.OpenStandardOutput();
+        await RunAsync(input, output, cancellationToken);
+    }
+
+    internal async Task RunAsync(Stream input, Stream output, CancellationToken cancellationToken)
+    {
         using var reader = new StreamReader(input, Console.InputEncoding, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
         await using var writer = new StreamWriter(output, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), leaveOpen: true)
         {

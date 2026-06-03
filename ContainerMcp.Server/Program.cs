@@ -1,6 +1,7 @@
 using ContainerMcp.Configuration;
 using ContainerMcp.Mcp;
 using ContainerMcp.Models;
+using ContainerMcp;
 using System.Text.Json.Nodes;
 
 var options = ContainerMcpOptions.From(args);
@@ -27,6 +28,10 @@ Console.Error.WriteLine(
     $"container-mcp HTTP transport listening on {options.Urls}; MCP endpoint: {TrimTrailingSlash(options.Urls)}/mcp; " +
     $"defaultEngine={options.DefaultEngine.ToString().ToLowerInvariant()}, defaultTarget={options.DefaultTarget}, " +
     $"toolTimeout={options.ToolTimeout.TotalSeconds:0}s, apiTimeout={options.ApiTimeout.TotalSeconds:0}s, apiProbeTimeout={options.ApiProbeTimeout.TotalSeconds:0}s");
+if (ProgramSupport.HasNonLoopbackBinding(options.Urls))
+{
+    Console.Error.WriteLine(ProgramSupport.BuildNonLoopbackWarning(options));
+}
 
 app.MapGet("/", () => JsonNodeExtensions.JsonResult(new JsonObject
 {
@@ -35,7 +40,8 @@ app.MapGet("/", () => JsonNodeExtensions.JsonResult(new JsonObject
     ["endpoint"] = "/mcp"
 }));
 
-app.MapPost("/mcp", McpHttpEndpoint.HandlePostAsync);
+app.MapPost("/mcp", (HttpContext httpContext, McpJsonRpcHandler handler) =>
+    McpHttpEndpoint.HandlePostAsync(httpContext, handler));
 app.MapGet("/mcp", McpHttpEndpoint.HandleGet);
 app.MapMethods("/mcp", ["DELETE", "PUT", "PATCH"], McpHttpEndpoint.HandleUnsupportedMethod);
 
