@@ -42,6 +42,12 @@ Run with stdio transport:
 dotnet run --project ContainerMcp.Server -- --transport stdio
 ```
 
+## 🔌 Transports
+
+HTTP transport accepts JSON-RPC requests at `POST /mcp`, including batch requests. A notification-only message or batch returns `202 Accepted` with no response body. `GET /mcp` returns `405 Method Not Allowed` because server-sent event streaming is not implemented; `GET /` returns server metadata. HTTP request bodies are limited to 1 MiB.
+
+stdio transport reads one compact JSON-RPC message per stdin line and writes only JSON-RPC responses to stdout. Startup and diagnostic logs are written to stderr so stdout remains safe for MCP clients.
+
 ## 🧰 Available MCP Tools
 
 | Tool | Purpose |
@@ -124,14 +130,11 @@ Important runtime defaults:
 
 ## 🧭 Runtime Support
 
-Version 1 supports local targets only.
+Version 1 supports local targets only and is currently documented for Docker Desktop on Windows.
 
 - **Docker on Windows:** uses `\\.\pipe\docker_engine` by default.
-- **Docker on Unix:** uses `/var/run/docker.sock` by default unless `DOCKER_HOST` is set.
-- **Podman on Unix:** discovers endpoints from `CONTAINER_MCP_PODMAN_HOST`, `PODMAN_HOST`, or common socket paths.
-- **Podman on Windows:** not implemented in v1.
 
-Runtime endpoint environment variables accept `unix://`, `npipe://`, `tcp://`, and `http://` endpoint values.
+Docker endpoint environment variables accept `npipe://`, `tcp://`, and `http://` endpoint values on Windows.
 
 ## 📁 Project Structure
 
@@ -156,6 +159,8 @@ container-mcp/
 - Host bind mounts are rejected in v1.
 - Only named or anonymous container volumes are allowed.
 - Only `target=local` is supported.
+- Remote targets, host bind mounts, unlimited real-time streaming, and registry authentication are not implemented in v1.
+- Binding HTTP transport to a non-loopback address prints a warning; use loopback URLs for normal local MCP clients.
 - Image tar import/export uses explicit local file paths and bounded reads/writes.
 - stdio mode reserves stdout for JSON-RPC responses; diagnostics must go to stderr.
 - Long-running background work should not be added to MCP request paths.
@@ -173,7 +178,12 @@ dotnet run --project ContainerMcp.Server -- --transport http --urls http://127.0
 dotnet run --project ContainerMcp.Server -- --transport stdio
 ```
 
-The solution includes focused xUnit tests in `ContainerMcp.Server.Tests/`. When adding behavior, prefer focused automated tests over manual Docker checks alone.
+The solution includes focused xUnit tests in `ContainerMcp.Server.Tests/`. When adding behavior, prefer focused automated tests over manual Docker checks alone. Optional Docker Desktop integration tests are disabled by default; run them with:
+
+```powershell
+$env:CONTAINER_MCP_RUN_DOCKER_TESTS = "1"
+dotnet test --filter LocalDockerIntegrationTests
+```
 
 For agent and maintenance guidance, see [AGENTS.md](AGENTS.md).
 

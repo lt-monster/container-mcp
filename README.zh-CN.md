@@ -42,6 +42,12 @@ POST http://127.0.0.1:7010/mcp
 dotnet run --project ContainerMcp.Server -- --transport stdio
 ```
 
+## Transport 差异
+
+HTTP transport 在 `POST /mcp` 接收 JSON-RPC 请求，并支持 batch request。只有 notification 的消息或 batch 会返回 `202 Accepted`，且没有响应体。`GET /mcp` 返回 `405 Method Not Allowed`，因为尚未实现 server-sent event streaming；`GET /` 返回服务元数据。HTTP 请求体大小限制为 1 MiB。
+
+stdio transport 从 stdin 按行读取紧凑 JSON-RPC 消息，并且只把 JSON-RPC 响应写入 stdout。启动信息和诊断日志写入 stderr，避免污染 MCP client 读取 stdout 的协议流。
+
 ## MCP 工具
 
 | 工具 | 用途 |
@@ -124,14 +130,11 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 
 ## 运行时支持
 
-v1 仅支持本地 target。
+v1 仅支持本地 target；当前文档聚焦 Windows 上的 Docker Desktop。
 
 - **Windows 上的 Docker：** 默认使用 `\\.\pipe\docker_engine`。
-- **Unix 上的 Docker：** 默认使用 `/var/run/docker.sock`，除非设置了 `DOCKER_HOST`。
-- **Unix 上的 Podman：** 从 `CONTAINER_MCP_PODMAN_HOST`、`PODMAN_HOST` 或常见 socket 路径发现 endpoint。
-- **Windows 上的 Podman：** v1 尚未实现。
 
-运行时 endpoint 环境变量支持 `unix://`、`npipe://`、`tcp://` 和 `http://` endpoint 值。
+Windows 上的 Docker endpoint 环境变量支持 `npipe://`、`tcp://` 和 `http://` endpoint 值。
 
 ## 项目结构
 
@@ -156,6 +159,8 @@ container-mcp/
 - v1 拒绝 host bind mount。
 - 仅允许命名卷或匿名容器卷。
 - 仅支持 `target=local`。
+- v1 尚未实现远程 target、host bind mount、无限实时流式输出和 registry 认证。
+- 当 HTTP transport 绑定到非 loopback 地址时会输出警告；常规本地 MCP client 建议使用 loopback URL。
 - 镜像 tar 导入/导出使用显式本地文件路径，并限制读写大小。
 - stdio transport 中 stdout 只用于 JSON-RPC 响应，诊断日志应写入 stderr。
 - 不建议在 MCP 请求路径中加入长时间运行的后台任务。
@@ -173,7 +178,12 @@ dotnet run --project ContainerMcp.Server -- --transport http --urls http://127.0
 dotnet run --project ContainerMcp.Server -- --transport stdio
 ```
 
-测试项目位于 `ContainerMcp.Server.Tests/`。新增行为时，优先添加聚焦的自动化测试，不要只依赖手动 Docker 检查。
+测试项目位于 `ContainerMcp.Server.Tests/`。新增行为时，优先添加聚焦的自动化测试，不要只依赖手动 Docker 检查。可选 Docker Desktop 集成测试默认不执行，可以这样启用：
+
+```powershell
+$env:CONTAINER_MCP_RUN_DOCKER_TESTS = "1"
+dotnet test --filter LocalDockerIntegrationTests
+```
 
 更多代理和维护约定见 [AGENTS.md](AGENTS.md)。
 

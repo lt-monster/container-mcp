@@ -75,33 +75,33 @@
 
 ## 9. 测试
 
-- [ ] **9.1** 扩展 `ContainerMcpOptions` 解析和 timeout 归一化测试。（现在实现）
-- [ ] **9.2** 增加 `EngineResolver` Docker/Podman 选择行为测试。（后续实现）
-- [ ] **9.3** 通过公开或 internal seam 增加 `DockerApiClientFactory.TryParseHost` 行为测试。（现在实现）
-- [ ] **9.4** 增加 `VolumePolicy` 对命名卷接受和 host path 拒绝的测试。（现在实现）
-- [ ] **9.5** 增加 `ContainerCreateRequestBuilder` 请求体生成测试。（现在实现）
-- [ ] **9.6** 增加 `McpToolRegistry` schema 和共享 `engine` / `target` 参数测试。（现在实现）
-- [ ] **9.7** 增加 JSON-RPC request、notification、parse error 和 tool error 行为测试。（现在实现）
-- [ ] **9.8** 增加基于 fake Docker-compatible HTTP server 的集成测试。（现在实现）
-- [ ] **9.9** 增加可选的真实本地 Docker engine 手动/集成测试。（后续实现）
+- [x] **9.1** 扩展 `ContainerMcpOptions` 解析和 timeout 归一化测试。（现在实现）
+- [x] **9.2** 增加 `EngineResolver` Docker Desktop 选择行为测试。（现在实现）
+- [x] **9.3** 通过公开或 internal seam 增加 `DockerApiClientFactory.TryParseHost` 行为测试。（现在实现）
+- [x] **9.4** 增加 `VolumePolicy` 对命名卷接受和 host path 拒绝的测试。（现在实现）
+- [x] **9.5** 增加 `ContainerCreateRequestBuilder` 请求体生成测试。（现在实现）
+- [x] **9.6** 增加 `McpToolRegistry` schema 和共享 `engine` / `target` 参数测试。（现在实现）
+- [x] **9.7** 增加 JSON-RPC request、notification、parse error 和 tool error 行为测试。（现在实现）
+- [x] **9.8** 增加基于 fake Docker-compatible HTTP server 的集成测试。（现在实现）
+- [x] **9.9** 增加可选的真实本地 Docker engine 手动/集成测试。（现在实现）
 
 ## 10. 安全与运维
 
-- [ ] **10.1** 当 HTTP transport 绑定到非 loopback 地址时，增加警告或防护。（现在实现）
+- [x] **10.1** 当 HTTP transport 绑定到非 loopback 地址时，增加警告或防护。（现在实现）
 - [ ] **10.2** 在推荐远程访问前，为 HTTP transport 设计认证或 token 保护。（后续实现）
-- [ ] **10.3** 为 HTTP JSON 请求体增加大小限制。（现在实现）
+- [x] **10.3** 为 HTTP JSON 请求体增加大小限制。（现在实现）
 - [ ] **10.4** 如果 HTTP transport 暴露到 localhost 以外，增加 rate limiting。（后续实现）
 - [ ] **10.5** 如果计划以托管服务运行，增加 health/readiness 元数据 endpoint。（后续实现）
-- [ ] **10.6** 确保 stdio 模式永远不向 stdout 写诊断信息。（现在实现）
-- [ ] **10.7** 复查 publish profile，移除源码中的用户级发布文件。（现在实现）
+- [x] **10.6** 确保 stdio 模式永远不向 stdout 写诊断信息。（现在实现）
+- [x] **10.7** 复查 publish profile，移除源码中的用户级发布文件。（现在实现）
 
 ## 11. 文档
 
-- [ ] **11.1** 文档化 `container_logs` 响应结构：`stdout`、`stderr`、`text`、`bytesRead`、`frameCount`、`truncated`、`framed`。（现在实现）
-- [ ] **11.2** 文档化 `image_pull` 响应结构：`events`、`eventCount`、`lastStatus`、`lastError`、`truncated`。（现在实现）
-- [ ] **11.3** 文档化 HTTP 和 stdio 两种 transport 的差异。（现在实现）
-- [ ] **11.4** 文档化当前不支持的能力：Windows Podman、远程 target、bind mount、真正无限流、registry auth、network 工具。（后续实现）
-- [ ] **11.5** 修复 README 在仓库中显示为乱码的问题。（现在实现）
+- [x] **11.1** 文档化 `container_logs` 响应结构：`stdout`、`stderr`、`text`、`bytesRead`、`frameCount`、`truncated`、`framed`。（现在实现）
+- [x] **11.2** 文档化 `image_pull` 响应结构：`events`、`eventCount`、`lastStatus`、`lastError`、`truncated`。（现在实现）
+- [x] **11.3** 文档化 HTTP 和 stdio 两种 transport 的差异。（现在实现）
+- [x] **11.4** 文档化当前不支持的能力：远程 target、bind mount、真正无限流、registry auth。（现在实现）
+- [x] **11.5** 修复 README 在仓库中显示为乱码的问题。（现在实现）
 
 ## 12. CI / 发布
 
