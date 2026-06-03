@@ -46,7 +46,8 @@ internal sealed class McpJsonRpcHandler
                 ["errorCode"] = ex.ErrorCode,
                 ["message"] = ex.Message,
                 ["statusCode"] = ex.StatusCode,
-                ["endpoint"] = ex.Endpoint
+                ["endpoint"] = ex.Endpoint,
+                ["details"] = ex.Details.CloneNode()
             }) : null;
         }
         catch (Exception ex)

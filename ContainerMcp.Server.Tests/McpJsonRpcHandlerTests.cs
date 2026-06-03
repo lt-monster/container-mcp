@@ -46,6 +46,26 @@ public sealed class McpJsonRpcHandlerTests
         Assert.Equal(errorCode, response["error"]!["data"]!["errorCode"]!.GetValue<string>());
     }
 
+    [Fact]
+    public async Task HandleAsync_IncludesContainerErrorDetailsInData()
+    {
+        var details = new JsonObject
+        {
+            ["protocol"] = "tcp",
+            ["scanned"] = 1
+        };
+        var handler = new McpJsonRpcHandler(new ThrowingToolRegistry(McpErrorCode.PortRangeExhausted, details), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse(
+            """{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"test_tool","arguments":{}}}""");
+
+        var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        var data = response["error"]!["data"]!;
+        Assert.Equal("tcp", data["details"]!["protocol"]!.GetValue<string>());
+        Assert.Equal(1, data["details"]!["scanned"]!.GetValue<int>());
+    }
+
     private sealed class EmptyToolRegistry : IMcpToolRegistry
     {
         public JsonArray List() => [];
@@ -54,11 +74,11 @@ public sealed class McpJsonRpcHandlerTests
             throw new NotSupportedException();
     }
 
-    private sealed class ThrowingToolRegistry(string errorCode) : IMcpToolRegistry
+    private sealed class ThrowingToolRegistry(string errorCode, JsonObject? details = null) : IMcpToolRegistry
     {
         public JsonArray List() => [];
 
         public Task<JsonObject> CallAsync(string name, JsonElement arguments, CancellationToken cancellationToken) =>
-            throw new ContainerMcpException(errorCode, "Tool failed.", StatusCodes.Status400BadRequest);
+            throw new ContainerMcpException(errorCode, "Tool failed.", StatusCodes.Status400BadRequest, details: details);
     }
 }
