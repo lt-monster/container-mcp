@@ -1,0 +1,26 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0.300-noble-aot
+
+WORKDIR /src
+
+COPY ContainerMcp.sln global.json ./
+COPY ContainerMcp.Server/ContainerMcp.Server.csproj ContainerMcp.Server/
+COPY ContainerMcp.Server.Tests/ContainerMcp.Server.Tests.csproj ContainerMcp.Server.Tests/
+
+RUN dotnet restore ContainerMcp.Server/ContainerMcp.Server.csproj \
+    --runtime linux-x64 \
+    -p:PublishAot=true
+
+COPY . .
+
+RUN dotnet publish ContainerMcp.Server/ContainerMcp.Server.csproj \
+    --configuration Release \
+    --runtime linux-x64 \
+    --self-contained true \
+    --no-restore \
+    -p:PublishAot=true \
+    -p:StripSymbols=true \
+    -p:DebugType=None \
+    -p:DebugSymbols=false \
+    --output /publish \
+    && mkdir -p /out \
+    && cp /publish/container-mcp /out/container-mcp

@@ -107,6 +107,34 @@ dotnet run --project ContainerMcp.Server -- --transport stdio
 
 The repository includes focused xUnit tests in `ContainerMcp.Server.Tests/`. When adding meaningful behavior, prefer adding focused tests rather than relying only on manual Docker checks.
 
+## Native AOT Release
+
+### Windows x64
+
+For Windows x64 Native AOT publishing, use the repository script instead of running `dotnet publish` directly:
+
+```powershell
+.\build\publish-win-x64-aot.ps1
+```
+
+The script publishes `ContainerMcp.Server` for `win-x64`, disables debug symbol output, and removes every file except `container-mcp.exe` from `artifacts/publish/win-x64-aot`. The expected Windows artifact directory should contain only `artifacts/publish/win-x64-aot/container-mcp.exe`.
+
+### Linux x64
+
+Use the repository Dockerfile at `build/Dockerfile.linux-x64-aot` to publish a Linux x64 Native AOT binary from a Linux SDK container pinned to `mcr.microsoft.com/dotnet/sdk:10.0.300-noble-aot`.
+
+From the repository root:
+
+```powershell
+docker build --platform linux/amd64 -f build/Dockerfile.linux-x64-aot -t container-mcp-linux-x64-aot-builder .
+docker create --name container-mcp-linux-x64-aot-out container-mcp-linux-x64-aot-builder
+New-Item -ItemType Directory -Force artifacts\publish\linux-x64-aot | Out-Null
+docker cp container-mcp-linux-x64-aot-out:/out/. artifacts\publish\linux-x64-aot
+docker rm container-mcp-linux-x64-aot-out
+```
+
+The Dockerfile publishes into a temporary directory, then copies only the Native AOT executable to `/out`. The expected artifact directory should contain only `artifacts/publish/linux-x64-aot/container-mcp`; `appsettings*.json`, `global.json`, tool manifests, and static web assets metadata are not required for normal distribution of this binary. The `artifacts/` directory is intentionally ignored by Git.
+
 ## Coding Conventions
 
 - Keep types `internal` unless they are intentionally part of a public API surface.
