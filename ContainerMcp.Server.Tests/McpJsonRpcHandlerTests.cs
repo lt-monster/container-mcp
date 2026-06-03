@@ -55,6 +55,32 @@ public sealed class McpJsonRpcHandlerTests
     }
 
     [Fact]
+    public async Task HandleMessageAsync_ReturnsInvalidRequestForScalarMessage()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse("true");
+
+        var response = await handler.HandleMessageAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal(-32600, response["error"]!["code"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task HandleMessageAsync_ReturnsBatchErrorForInvalidItem()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse("""[true,{"jsonrpc":"2.0","id":1,"method":"ping"}]""");
+
+        var response = await handler.HandleMessageAsync(document.RootElement, CancellationToken.None);
+
+        var array = Assert.IsType<JsonArray>(response);
+        Assert.Equal(2, array.Count);
+        Assert.Equal(-32600, array[0]!["error"]!["code"]!.GetValue<int>());
+        Assert.Equal(1, array[1]!["id"]!.GetValue<long>());
+    }
+
+    [Fact]
     public async Task HandleAsync_ReturnsNoResponseForNotificationWithoutId()
     {
         var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From(["--transport", "stdio"]));
@@ -64,6 +90,45 @@ public sealed class McpJsonRpcHandlerTests
         var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
 
         Assert.Null(response);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ReturnsMethodNotFoundForUnknownMethod()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse("""{"jsonrpc":"2.0","id":"abc","method":"missing"}""");
+
+        var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal("abc", response["id"]!.GetValue<string>());
+        Assert.Equal(-32601, response["error"]!["code"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_ReturnsInvalidParamsWhenToolNameIsMissing()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse("""{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"arguments":{}}}""");
+
+        var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal(-32602, response["error"]!["code"]!.GetValue<int>());
+        Assert.Equal("tools/call requires a tool name.", response["error"]!["message"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_ReturnsTimeoutWhenToolExceedsToolTimeout()
+    {
+        var handler = new McpJsonRpcHandler(new SlowToolRegistry(), ContainerMcpOptions.From(["--tool-timeout-seconds", "1"]));
+        using var document = JsonDocument.Parse("""{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"slow","arguments":{}}}""");
+
+        var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal(-32002, response["error"]!["code"]!.GetValue<int>());
+        Assert.Contains("timed out", response["error"]!["message"]!.GetValue<string>());
     }
 
     [Theory]
@@ -125,5 +190,16 @@ public sealed class McpJsonRpcHandlerTests
 
         public Task<JsonObject> CallAsync(string name, JsonElement arguments, CancellationToken cancellationToken) =>
             throw new ContainerMcpException(errorCode, "Tool failed.", StatusCodes.Status400BadRequest, details: details);
+    }
+
+    private sealed class SlowToolRegistry : IMcpToolRegistry
+    {
+        public JsonArray List() => [];
+
+        public async Task<JsonObject> CallAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            return new JsonObject();
+        }
     }
 }

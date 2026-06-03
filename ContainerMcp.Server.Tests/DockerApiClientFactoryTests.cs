@@ -52,9 +52,74 @@ public sealed class DockerApiClientFactoryTests
         Assert.Throws<ObjectDisposedException>(() => client.Send(request));
     }
 
+    [Theory]
+    [InlineData("tcp://127.0.0.1:2375", "Tcp", "tcp://127.0.0.1:2375")]
+    [InlineData("http://127.0.0.1:2375", "Tcp", "http://127.0.0.1:2375")]
+    [InlineData("npipe://./pipe/docker_engine", "NamedPipe", @"\\.\pipe\docker_engine")]
+    [InlineData("npipe:////./pipe/docker_engine", "NamedPipe", @"\\.\pipe\docker_engine")]
+    public void TryParseHost_ParsesDockerDesktopEndpointValues(string host, string expectedKind, string expectedAddress)
+    {
+        var parsed = DockerApiClientFactory.TryParseHost(ContainerEngine.Docker, host, out var endpoint);
+
+        Assert.True(parsed);
+        Assert.Equal(ContainerEngine.Docker, endpoint.Engine);
+        Assert.Equal(expectedKind, endpoint.Kind.ToString());
+        Assert.Equal(expectedAddress, endpoint.Address);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("ssh://docker-host")]
+    [InlineData("127.0.0.1:2375")]
+    public void TryParseHost_RejectsUnsupportedEndpointValues(string? host)
+    {
+        var parsed = DockerApiClientFactory.TryParseHost(ContainerEngine.Docker, host, out var endpoint);
+
+        Assert.False(parsed);
+        Assert.Null(endpoint);
+    }
+
+    [Fact]
+    public void GetEndpoint_UsesDockerHostEnvironment()
+    {
+        using var environment = new EnvironmentScope().Set("DOCKER_HOST", "tcp://127.0.0.1:2375");
+        using var factory = CreateFactory();
+
+        var endpoint = factory.GetEndpoint(ContainerEngine.Docker);
+
+        Assert.NotNull(endpoint);
+        Assert.Equal(RuntimeEndpointKind.Tcp, endpoint.Kind);
+        Assert.Equal("tcp://127.0.0.1:2375", endpoint.Address);
+    }
+
     private static DockerApiClientFactory CreateFactory() =>
         new(ContainerMcpOptions.From([]));
 
     private static RuntimeEndpoint DockerEndpoint(string pipeName) =>
         new(ContainerEngine.Docker, RuntimeEndpointKind.NamedPipe, pipeName);
+
+    private sealed class EnvironmentScope : IDisposable
+    {
+        private readonly Dictionary<string, string?> _original = [];
+
+        public EnvironmentScope Set(string name, string? value)
+        {
+            if (!_original.ContainsKey(name))
+            {
+                _original[name] = Environment.GetEnvironmentVariable(name);
+            }
+
+            Environment.SetEnvironmentVariable(name, value);
+            return this;
+        }
+
+        public void Dispose()
+        {
+            foreach (var pair in _original)
+            {
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
+        }
+    }
 }

@@ -83,6 +83,81 @@ public sealed class ContainerCreateRequestBuilderTests
         Assert.Equal(3, healthcheck["Retries"]!.GetValue<int>());
     }
 
+    [Fact]
+    public void Build_MapsCommandEnvLabelsVolumesAndPorts()
+    {
+        using var document = JsonDocument.Parse(
+            """
+            {
+              "command": "echo hello",
+              "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+              },
+              "labels": {
+                "app": "demo"
+              },
+              "volumes": [
+                "cache:/data:ro"
+              ],
+              "ports": [
+                "127.0.0.1:8080:80/tcp",
+                "53/udp"
+              ]
+            }
+            """);
+        var builder = new ContainerCreateRequestBuilder(new VolumePolicy());
+
+        var body = builder.Build(document.RootElement, "nginx");
+        var hostConfig = body["HostConfig"]!;
+
+        Assert.Equal("echo hello", body["Cmd"]![0]!.GetValue<string>());
+        Assert.Equal("ASPNETCORE_ENVIRONMENT=Development", body["Env"]![0]!.GetValue<string>());
+        Assert.Equal("demo", body["Labels"]!["app"]!.GetValue<string>());
+        Assert.Equal("cache:/data:ro", hostConfig["Binds"]![0]!.GetValue<string>());
+        Assert.Equal("127.0.0.1", hostConfig["PortBindings"]!["80/tcp"]![0]!["HostIp"]!.GetValue<string>());
+        Assert.Equal("8080", hostConfig["PortBindings"]!["80/tcp"]![0]!["HostPort"]!.GetValue<string>());
+        Assert.NotNull(hostConfig["PortBindings"]!["53/udp"]![0]);
+        Assert.NotNull(body["ExposedPorts"]!["80/tcp"]);
+        Assert.NotNull(body["ExposedPorts"]!["53/udp"]);
+    }
+
+    [Fact]
+    public void Build_MapsObjectPortBindings()
+    {
+        using var document = JsonDocument.Parse("""{"ports":{"80/tcp":8080,"443":"8443"}}""");
+        var builder = new ContainerCreateRequestBuilder(new VolumePolicy());
+
+        var body = builder.Build(document.RootElement, "nginx");
+        var portBindings = body["HostConfig"]!["PortBindings"]!;
+
+        Assert.Equal("8080", portBindings["80/tcp"]![0]!["HostPort"]!.GetValue<string>());
+        Assert.Equal("8443", portBindings["443/tcp"]![0]!["HostPort"]!.GetValue<string>());
+        Assert.NotNull(body["ExposedPorts"]!["443/tcp"]);
+    }
+
+    [Fact]
+    public void Build_OmitsEmptyHealthcheck()
+    {
+        using var document = JsonDocument.Parse("""{"healthcheck":{}}""");
+        var builder = new ContainerCreateRequestBuilder(new VolumePolicy());
+
+        var body = builder.Build(document.RootElement, "nginx");
+
+        Assert.Null(body["Healthcheck"]);
+    }
+
+    [Fact]
+    public void Build_RejectsHostBindMounts()
+    {
+        using var document = JsonDocument.Parse("""{"volumes":["C:\\host:/data"]}""");
+        var builder = new ContainerCreateRequestBuilder(new VolumePolicy());
+
+        var exception = Assert.Throws<ContainerMcpException>(
+            () => builder.Build(document.RootElement, "nginx"));
+
+        Assert.Equal(McpErrorCode.UnsupportedVolumeMount, exception.ErrorCode);
+    }
+
     [Theory]
     [InlineData("""{"ports":["8080:80:tcp:extra"]}""", "Invalid port mapping '8080:80:tcp:extra'. Expected containerPort[/protocol], hostPort:containerPort[/protocol], or hostIp:hostPort:containerPort[/protocol].")]
     [InlineData("""{"ports":["not-a-port"]}""", "Invalid port mapping 'not-a-port'. Container port must be between 1 and 65535.")]

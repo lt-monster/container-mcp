@@ -59,6 +59,49 @@ public sealed class McpHttpEndpointTests
         Assert.Equal(StatusCodes.Status405MethodNotAllowed, context.Response.StatusCode);
     }
 
+    [Fact]
+    public async Task HandlePostAsync_ReturnsParseErrorForInvalidJson()
+    {
+        var context = HttpContextWithBody("{");
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+
+        var result = await McpHttpEndpoint.HandlePostAsync(context, handler);
+        await result.ExecuteAsync(context);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+        context.Response.Body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(context.Response.Body);
+        Assert.Equal(-32700, document.RootElement.GetProperty("error").GetProperty("code").GetInt32());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_RejectsRequestsOverMaxBodySize()
+    {
+        var context = HttpContextWithBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""");
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+
+        var result = await McpHttpEndpoint.HandlePostAsync(context, handler, maxRequestBodyBytes: 8);
+        await result.ExecuteAsync(context);
+
+        Assert.Equal(StatusCodes.Status413PayloadTooLarge, context.Response.StatusCode);
+        context.Response.Body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(context.Response.Body);
+        Assert.Equal(-32600, document.RootElement.GetProperty("error").GetProperty("code").GetInt32());
+    }
+
+    [Fact]
+    public async Task HandleUnsupportedMethod_ReturnsMethodNotAllowed()
+    {
+        var context = new DefaultHttpContext();
+        context.RequestServices = TestServices();
+        context.Response.Body = new MemoryStream();
+
+        var result = McpHttpEndpoint.HandleUnsupportedMethod();
+        await result.ExecuteAsync(context);
+
+        Assert.Equal(StatusCodes.Status405MethodNotAllowed, context.Response.StatusCode);
+    }
+
     private static DefaultHttpContext HttpContextWithBody(string json)
     {
         var context = new DefaultHttpContext();

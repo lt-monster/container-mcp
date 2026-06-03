@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ContainerMcp.Configuration;
 using ContainerMcp.ContainerRuntime;
 using ContainerMcp.Mcp;
@@ -152,6 +153,65 @@ public sealed class McpToolRegistryValidationTests
         Assert.Equal(expectedMessage, exception.Message);
     }
 
+    [Fact]
+    public void List_AllToolsHaveObjectInputSchemaWithAdditionalPropertiesDisabled()
+    {
+        var registry = CreateRegistry();
+
+        var tools = registry.List();
+
+        foreach (var tool in tools)
+        {
+            var schema = tool!["inputSchema"]!;
+            Assert.Equal("object", schema["type"]!.GetValue<string>());
+            Assert.False(schema["additionalProperties"]!.GetValue<bool>());
+            Assert.NotNull(schema["properties"]);
+            Assert.NotNull(schema["required"]);
+        }
+    }
+
+    [Theory]
+    [InlineData("container_list")]
+    [InlineData("image_list")]
+    [InlineData("volume_list")]
+    [InlineData("network_list")]
+    [InlineData("docker_diagnose")]
+    public void List_RuntimeToolsExposeSharedEngineAndTargetArguments(string toolName)
+    {
+        var tool = FindTool(CreateRegistry(), toolName);
+        var properties = tool["inputSchema"]!["properties"]!;
+
+        Assert.NotNull(properties["engine"]);
+        Assert.NotNull(properties["target"]);
+        Assert.Equal("auto", properties["engine"]!["enum"]![0]!.GetValue<string>());
+        Assert.Equal("local", properties["target"]!["enum"]![0]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void List_PortDiscoverySchemaExposesProtocolAndSharedArguments()
+    {
+        var tool = FindTool(CreateRegistry(), "port_find_free");
+        var properties = tool["inputSchema"]!["properties"]!;
+
+        Assert.NotNull(properties["engine"]);
+        Assert.NotNull(properties["target"]);
+        Assert.Equal("tcp", properties["protocol"]!["enum"]![0]!.GetValue<string>());
+        Assert.Equal("udp", properties["protocol"]!["enum"]![1]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void List_ContainerCreateSchemaDeclaresRequiredImage()
+    {
+        var tool = FindTool(CreateRegistry(), "container_create");
+        var required = tool["inputSchema"]!["required"]!;
+        var properties = tool["inputSchema"]!["properties"]!;
+
+        Assert.Contains(required.AsArray(), item => item!.GetValue<string>() == "image");
+        Assert.Equal("string", properties["image"]!["type"]!.GetValue<string>());
+        Assert.Equal("boolean", properties["tty"]!["type"]!.GetValue<string>());
+        Assert.NotNull(properties["healthcheck"]!["properties"]!["test"]);
+    }
+
     private static McpToolRegistry CreateRegistry()
     {
         var options = ContainerMcpOptions.From([]);
@@ -169,5 +229,11 @@ public sealed class McpToolRegistryValidationTests
             new NetworkService(runtime, api),
             new PortDiscoveryService(),
             new DockerDiagnosticsService(options, factory));
+    }
+
+    private static JsonNode FindTool(McpToolRegistry registry, string toolName)
+    {
+        var tool = registry.List().Single(tool => tool!["name"]!.GetValue<string>() == toolName);
+        return tool!;
     }
 }
