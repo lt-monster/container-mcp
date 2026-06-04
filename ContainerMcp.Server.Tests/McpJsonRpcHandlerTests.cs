@@ -118,6 +118,73 @@ public sealed class McpJsonRpcHandlerTests
         Assert.Equal(-32601, response["error"]!["code"]!.GetValue<int>());
     }
 
+    [Theory]
+    [InlineData("""{"id":1,"method":"ping"}""")]
+    [InlineData("""{"jsonrpc":"1.0","id":1,"method":"ping"}""")]
+    [InlineData("""{"jsonrpc":2,"id":1,"method":"ping"}""")]
+    public async Task HandleAsync_ReturnsInvalidRequestForInvalidJsonRpcVersion(string json)
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse(json);
+
+        var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal(-32600, response["error"]!["code"]!.GetValue<int>());
+        Assert.Equal("Invalid JSON-RPC request.", response["error"]!["message"]!.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData("""{"jsonrpc":"2.0","id":true,"method":"ping"}""")]
+    [InlineData("""{"jsonrpc":"2.0","id":[],"method":"ping"}""")]
+    [InlineData("""{"jsonrpc":"2.0","id":{},"method":"ping"}""")]
+    public async Task HandleAsync_ReturnsInvalidRequestWithNullIdForInvalidIdType(string json)
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse(json);
+
+        var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Null(response["id"]);
+        Assert.Equal(-32600, response["error"]!["code"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_SkipsInvalidNotificationWithoutResponseOrToolExecution()
+    {
+        var tools = new CountingToolRegistry();
+        var handler = new McpJsonRpcHandler(tools, ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse("""{"method":"tools/call","params":{"name":"count","arguments":{}}}""");
+
+        var response = await handler.HandleAsync(document.RootElement, CancellationToken.None);
+
+        Assert.Null(response);
+        Assert.Equal(0, tools.CallCount);
+    }
+
+    [Fact]
+    public async Task HandleMessageAsync_ReturnsBatchErrorForMissingJsonRpcVersion()
+    {
+        var handler = new McpJsonRpcHandler(new EmptyToolRegistry(), ContainerMcpOptions.From([]));
+        using var document = JsonDocument.Parse(
+            """
+            [
+              {"jsonrpc":"2.0","id":1,"method":"ping"},
+              {"jsonrpc":"2.0","method":"notifications/initialized"},
+              {"id":2,"method":"ping"}
+            ]
+            """);
+
+        var response = await handler.HandleMessageAsync(document.RootElement, CancellationToken.None);
+
+        var array = Assert.IsType<JsonArray>(response);
+        Assert.Equal(2, array.Count);
+        Assert.Equal(1, array[0]!["id"]!.GetValue<long>());
+        Assert.Equal(2, array[1]!["id"]!.GetValue<long>());
+        Assert.Equal(-32600, array[1]!["error"]!["code"]!.GetValue<int>());
+    }
+
     [Fact]
     public async Task HandleAsync_ReturnsInvalidParamsWhenToolNameIsMissing()
     {
@@ -259,6 +326,19 @@ public sealed class McpJsonRpcHandlerTests
                 ["engine"] = "docker",
                 ["target"] = "local"
             });
+    }
+
+    private sealed class CountingToolRegistry : IMcpToolRegistry
+    {
+        public int CallCount { get; private set; }
+
+        public JsonArray List() => [];
+
+        public Task<JsonObject> CallAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return Task.FromResult(new JsonObject());
+        }
     }
 
     private sealed class ThrowingToolRegistry(string errorCode, JsonObject? details = null) : IMcpToolRegistry

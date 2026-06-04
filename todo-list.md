@@ -7,6 +7,7 @@
 - [ ] **1.3** 设计长时间运行或流式操作在 MCP 层的表达方式。（后续实现）
 - [x] **1.4** 在工具执行前增加 schema 校验，真正落实 `additionalProperties: false`、必填字段和类型约束。（现在实现）
 - [x] **1.5** 为不同错误返回更精确的 JSON-RPC error code，避免所有 `ContainerMcpException` 都映射到 `-32000`。（现在实现）
+- [x] **1.6** 更严格校验 JSON-RPC 基础字段，包括 `jsonrpc: "2.0"`、`id` 类型和 malformed request 行为。（现在实现）
 
 ## 2. 运行时支持
 

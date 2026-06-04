@@ -39,12 +39,18 @@ internal sealed class McpJsonRpcHandler
         }
 
         var hasId = request.TryGetProperty("id", out var idProperty);
-        var id = hasId ? idProperty.Clone() : default(JsonElement?);
+        var hasValidId = !hasId || IsValidId(idProperty);
+        var id = hasId && hasValidId ? idProperty.Clone() : default(JsonElement?);
         try
         {
             if (IsJsonRpcResponse(request))
             {
                 return null;
+            }
+
+            if (!HasJsonRpcVersion(request) || !hasValidId)
+            {
+                return hasId ? Error(id, -32600, "Invalid JSON-RPC request.") : null;
             }
 
             if (!request.TryGetProperty("method", out var methodProperty) || methodProperty.ValueKind != JsonValueKind.String)
@@ -244,6 +250,14 @@ internal sealed class McpJsonRpcHandler
         !request.TryGetProperty("method", out _) &&
         request.TryGetProperty("id", out _) &&
         (request.TryGetProperty("result", out _) || request.TryGetProperty("error", out _));
+
+    private static bool HasJsonRpcVersion(JsonElement request) =>
+        request.TryGetProperty("jsonrpc", out var jsonrpc)
+        && jsonrpc.ValueKind == JsonValueKind.String
+        && string.Equals(jsonrpc.GetString(), "2.0", StringComparison.Ordinal);
+
+    private static bool IsValidId(JsonElement id) =>
+        id.ValueKind is JsonValueKind.String or JsonValueKind.Number or JsonValueKind.Null;
 
     private static JsonNode? JsonId(JsonElement? id)
     {
