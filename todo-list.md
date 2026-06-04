@@ -95,6 +95,7 @@
 - [x] **10.5** 如果计划以托管服务运行，增加 health/readiness 元数据 endpoint。（现在实现）
 - [x] **10.6** 确保 stdio 模式永远不向 stdout 写诊断信息。（现在实现）
 - [x] **10.7** 复查 publish profile，移除源码中的用户级发布文件。（现在实现）
+- [ ] **10.8** 引入统一的结构化日志入口，减少请求路径中直接 `Console.Error.WriteLine` 的使用。（后续实现）
 
 ## 11. 文档
 
@@ -103,6 +104,7 @@
 - [x] **11.3** 文档化 HTTP 和 stdio 两种 transport 的差异。（现在实现）
 - [x] **11.4** 文档化当前不支持的能力：远程 target、bind mount、真正无限流、registry auth。（现在实现）
 - [x] **11.5** 修复 README 在仓库中显示为乱码的问题。（现在实现）
+- [ ] **11.6** 发布新版本时同步 README 当前版本号、release asset 命名和 Quick Start 示例。（后续实现）
 
 ## 12. CI / 发布
 
@@ -110,3 +112,9 @@
 - [x] **12.2** 增加 GitHub Release workflow，自动构建并上传 Windows x64 和 Linux x64 self-contained/Native AOT 二进制程序；不发布容器镜像。（现在实现）
 - [x] **12.3** 增加 package/version 元数据，替代 initialize 响应里硬编码的 `0.1.0`。（现在实现）
 - [x] **12.4** 明确 Native AOT/trimming 是正式发布目标，并增加 publish artifact 验证。（现在实现）
+
+## 13. CLI / 配置体验
+
+- [x] **13.1** 为发布后的二进制增加 `--help` 和 `--version` 输出，覆盖 HTTP、stdio、token generate 和常用配置项。
+- [ ] **13.2** 对无效的 `--transport`、`--default-engine`、timeout、URL 和配置文件值 fail fast，而不是静默回退到默认值。（后续实现）
+- [ ] **13.3** 增加 CLI 参数解析和启动失败场景的聚焦测试，覆盖无效参数、缺失参数和 token generate 选项。（后续实现）

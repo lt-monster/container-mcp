@@ -4,6 +4,18 @@ using ContainerMcp.Models;
 using ContainerMcp;
 using System.Text.Json.Nodes;
 
+if (CliHelp.IsHelpRequested(args))
+{
+    Console.WriteLine(CliHelp.BuildHelp());
+    return;
+}
+
+if (CliHelp.IsVersionRequested(args))
+{
+    Console.WriteLine(CliHelp.BuildVersion());
+    return;
+}
+
 if (IsTokenGenerateCommand(args))
 {
     var tokenResult = HttpTokenGenerator.Generate(ReadTokenGenerateOptions(args, AppContext.BaseDirectory));
