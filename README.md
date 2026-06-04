@@ -30,16 +30,16 @@ The Linux binary is built in a Docker SDK image for a reproducible Linux AOT too
 
 ## 🚀 Quick Start
 
-Build the solution:
+After downloading and extracting a release archive, generate a local HTTP bearer token:
 
 ```powershell
-dotnet build
+.\container-mcp.exe token generate
 ```
 
-Run with HTTP transport:
+Start the server with the default HTTP transport:
 
 ```powershell
-dotnet run --project ContainerMcp.Server -- --transport http --urls http://127.0.0.1:7010
+.\container-mcp.exe
 ```
 
 Send MCP JSON-RPC requests to:
@@ -48,10 +48,10 @@ Send MCP JSON-RPC requests to:
 POST http://127.0.0.1:7010/mcp
 ```
 
-Run with stdio transport:
+Include the generated token in HTTP requests:
 
-```powershell
-dotnet run --project ContainerMcp.Server -- --transport stdio
+```http
+Authorization: Bearer <generated-token>
 ```
 
 ## 🔌 Transports

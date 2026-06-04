@@ -30,16 +30,16 @@ Linux 二进制程序使用 Docker SDK 镜像作为可复现的 Linux AOT 构建
 
 ## 快速开始
 
-构建项目：
+下载并解压 release 归档后，先生成本地 HTTP bearer token：
 
 ```powershell
-dotnet build
+.\container-mcp.exe token generate
 ```
 
-以 HTTP transport 运行：
+使用默认 HTTP transport 启动服务：
 
 ```powershell
-dotnet run --project ContainerMcp.Server -- --transport http --urls http://127.0.0.1:7010
+.\container-mcp.exe
 ```
 
 MCP JSON-RPC 请求地址：
@@ -48,10 +48,10 @@ MCP JSON-RPC 请求地址：
 POST http://127.0.0.1:7010/mcp
 ```
 
-以 stdio transport 运行：
+HTTP 请求需要携带刚生成的 token：
 
-```powershell
-dotnet run --project ContainerMcp.Server -- --transport stdio
+```http
+Authorization: Bearer <generated-token>
 ```
 
 ## Transport 差异

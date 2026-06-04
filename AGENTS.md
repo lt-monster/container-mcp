@@ -135,6 +135,12 @@ docker rm container-mcp-linux-x64-aot-out
 
 The Dockerfile publishes into a temporary directory, then copies only the Native AOT executable to `/out`. The expected artifact directory should contain only `artifacts/publish/linux-x64-aot/container-mcp`; `appsettings*.json`, `global.json`, tool manifests, and static web assets metadata are not required for normal distribution of this binary. The `artifacts/` directory is intentionally ignored by Git.
 
+## Release Notes
+
+When writing, revising, or reviewing GitHub Release notes, follow `docs/release-notes-rules.md`.
+
+Release notes must be generated from the actual tag diff, grouped by concrete change type such as `Features ✨`, `Fixes 🐛`, `CI / Release 👷`, `Docs 📝`, and `Tests 🧪`. Do not include empty categories, do not list release assets unless explicitly requested, and do not invent changes from plans or todo items.
+
 ## Coding Conventions
 
 - Keep types `internal` unless they are intentionally part of a public API surface.
