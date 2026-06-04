@@ -1,0 +1,155 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish, for example v1.0.1"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Test
+        run: dotnet test
+
+  build-windows:
+    name: Build Windows x64 Native AOT
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Publish
+        shell: pwsh
+        run: ./build/publish-win-x64-aot.ps1
+
+      - name: Verify publish artifact
+        shell: pwsh
+        run: ./build/verify-publish-artifacts.ps1 -Runtime win-x64-aot
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/release | Out-Null
+          Compress-Archive `
+            -Path artifacts/publish/win-x64-aot/container-mcp.exe `
+            -DestinationPath artifacts/release/container-mcp-win-x64.zip `
+            -Force
+
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: container-mcp-win-x64
+          path: artifacts/release/container-mcp-win-x64.zip
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux x64 Native AOT
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Build and copy Linux binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="container-mcp-linux-x64-aot-builder:${GITHUB_RUN_ID}"
+          container="container-mcp-linux-x64-aot-out-${GITHUB_RUN_ID}"
+          docker build --platform linux/amd64 -f build/Dockerfile.linux-x64-aot -t "$image" .
+          docker create --name "$container" "$image"
+          mkdir -p artifacts/publish/linux-x64-aot
+          docker cp "$container:/out/." artifacts/publish/linux-x64-aot
+          docker rm "$container"
+
+      - name: Verify publish artifact
+        shell: pwsh
+        run: ./build/verify-publish-artifacts.ps1 -Runtime linux-x64-aot
+
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release
+          tar -czf artifacts/release/container-mcp-linux-x64.tar.gz -C artifacts/publish/linux-x64-aot container-mcp
+
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: container-mcp-linux-x64
+          path: artifacts/release/container-mcp-linux-x64.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs:
+      - build-windows
+      - build-linux
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts/downloaded
+
+      - name: Prepare release assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/release | Out-Null
+          Get-ChildItem artifacts/downloaded -Recurse -File |
+            Copy-Item -Destination artifacts/release
+          Get-ChildItem artifacts/release -File |
+            Sort-Object Name |
+            ForEach-Object {
+              $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            } |
+            Set-Content -Encoding utf8 artifacts/release/checksums.txt
+
+      - name: Create or update release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes "container-mcp $RELEASE_TAG"
+          fi
+          gh release upload "$RELEASE_TAG" artifacts/release/* --clobber

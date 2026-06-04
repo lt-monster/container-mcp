@@ -106,6 +106,6 @@
 ## 12. CI / 发布
 
 - [ ] **12.1** 增加 GitHub Actions，执行 `dotnet build` 和 `dotnet test`。（现在实现）
-- [ ] **12.2** 如果计划分发二进制，增加 self-contained binary release workflow。（后续实现）
+- [x] **12.2** 增加 GitHub Release workflow，自动构建并上传 Windows x64 和 Linux x64 self-contained/Native AOT 二进制程序；不发布容器镜像。（现在实现）
 - [x] **12.3** 增加 package/version 元数据，替代 initialize 响应里硬编码的 `0.1.0`。（现在实现）
-- [ ] **12.4** 明确 trimming/AOT 是否是发布目标；如果启用，则增加 publish 验证。（后续实现）
+- [x] **12.4** 明确 Native AOT/trimming 是正式发布目标，并增加 publish artifact 验证。（现在实现）

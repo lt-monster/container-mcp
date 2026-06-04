@@ -8,6 +8,16 @@
 
 当前版本：`1.0.0`。
 
+## 发布二进制程序
+
+GitHub Releases 会发布 Windows x64 和 Linux x64 的 Native AOT self-contained 独立程序：
+
+- `container-mcp-win-x64.zip` 包含 `container-mcp.exe`。
+- `container-mcp-linux-x64.tar.gz` 包含 `container-mcp`。
+- `checksums.txt` 包含 release assets 的 SHA-256 校验和。
+
+Linux 二进制程序使用 Docker SDK 镜像作为可复现的 Linux AOT 构建环境。release workflow 不发布容器镜像。
+
 ## 功能概览
 
 - MCP JSON-RPC server，支持 `initialize`、`ping`、`tools/list` 和 `tools/call`。

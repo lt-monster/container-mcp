@@ -8,6 +8,16 @@
 
 Current release: `1.0.0`.
 
+## Release Binaries
+
+GitHub Releases publish Native AOT self-contained binaries for Windows x64 and Linux x64:
+
+- `container-mcp-win-x64.zip` contains `container-mcp.exe`.
+- `container-mcp-linux-x64.tar.gz` contains `container-mcp`.
+- `checksums.txt` contains SHA-256 checksums for the release assets.
+
+The Linux binary is built in a Docker SDK image for a reproducible Linux AOT toolchain. The release workflow does not publish a container image.
+
 ## ✨ Features
 
 - 🧠 MCP JSON-RPC server with `initialize`, `ping`, `tools/list`, and `tools/call` support.
