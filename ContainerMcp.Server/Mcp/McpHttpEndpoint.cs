@@ -1,5 +1,6 @@
 using ContainerMcp.Models;
 using ContainerMcp.Configuration;
+using System.Text.Json.Nodes;
 
 namespace ContainerMcp.Mcp;
 
@@ -66,6 +67,26 @@ internal static class McpHttpEndpoint
         JsonNodeExtensions.JsonResult(
             McpJsonRpcHandler.Error(null, -32600, "Streamable HTTP GET is not available because server-sent event streaming is not implemented."),
             StatusCodes.Status405MethodNotAllowed);
+
+    public static IResult HandleHealth() =>
+        JsonNodeExtensions.JsonResult(new JsonObject
+        {
+            ["status"] = "ok",
+            ["service"] = "container-mcp"
+        });
+
+    public static IResult HandleReady(ContainerMcpOptions options) =>
+        JsonNodeExtensions.JsonResult(new JsonObject
+        {
+            ["status"] = "ready",
+            ["service"] = "container-mcp",
+            ["version"] = ServerVersion.Current,
+            ["transport"] = "http",
+            ["endpoint"] = "/mcp",
+            ["defaultEngine"] = options.DefaultEngine.ToString().ToLowerInvariant(),
+            ["defaultTarget"] = options.DefaultTarget,
+            ["httpAuthRequired"] = options.HttpTokens.Count > 0
+        });
 
     public static IResult HandleUnsupportedMethod() =>
         JsonNodeExtensions.JsonResult(McpJsonRpcHandler.Error(null, -32600, "Unsupported MCP HTTP method."), StatusCodes.Status405MethodNotAllowed);

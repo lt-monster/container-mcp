@@ -12,6 +12,56 @@ namespace ContainerMcp.Server.Tests;
 public sealed class McpHttpEndpointTests
 {
     [Fact]
+    public async Task HandleHealth_ReturnsOkJsonMetadata()
+    {
+        var context = HttpContext();
+
+        var result = McpHttpEndpoint.HandleHealth();
+        await result.ExecuteAsync(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.StartsWith("application/json", context.Response.ContentType);
+        var root = await ReadResponseAsync(context);
+        Assert.Equal("ok", root.GetProperty("status").GetString());
+        Assert.Equal("container-mcp", root.GetProperty("service").GetString());
+    }
+
+    [Fact]
+    public async Task HandleReady_ReturnsReadyJsonMetadata()
+    {
+        var context = HttpContext();
+        var options = ContainerMcpOptions.From([]);
+
+        var result = McpHttpEndpoint.HandleReady(options);
+        await result.ExecuteAsync(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.StartsWith("application/json", context.Response.ContentType);
+        var root = await ReadResponseAsync(context);
+        Assert.Equal("ready", root.GetProperty("status").GetString());
+        Assert.Equal("container-mcp", root.GetProperty("service").GetString());
+        Assert.Equal(ServerVersion.Current, root.GetProperty("version").GetString());
+        Assert.Equal("http", root.GetProperty("transport").GetString());
+        Assert.Equal("/mcp", root.GetProperty("endpoint").GetString());
+        Assert.Equal("auto", root.GetProperty("defaultEngine").GetString());
+        Assert.Equal("local", root.GetProperty("defaultTarget").GetString());
+        Assert.False(root.GetProperty("httpAuthRequired").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandleReady_ReportsHttpAuthRequiredWhenTokensConfigured()
+    {
+        var context = HttpContext();
+        var options = OptionsWithToken("cmcp_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN");
+
+        var result = McpHttpEndpoint.HandleReady(options);
+        await result.ExecuteAsync(context);
+
+        var root = await ReadResponseAsync(context);
+        Assert.True(root.GetProperty("httpAuthRequired").GetBoolean());
+    }
+
+    [Fact]
     public async Task HandlePostAsync_ReturnsAcceptedForNotificationOnlyMessage()
     {
         var context = HttpContextWithBody("""{"jsonrpc":"2.0","method":"notifications/initialized"}""");
@@ -156,11 +206,24 @@ public sealed class McpHttpEndpointTests
 
     private static DefaultHttpContext HttpContextWithBody(string json)
     {
+        var context = HttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(json));
+        return context;
+    }
+
+    private static DefaultHttpContext HttpContext()
+    {
         var context = new DefaultHttpContext();
         context.RequestServices = TestServices();
-        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(json));
         context.Response.Body = new MemoryStream();
         return context;
+    }
+
+    private static async Task<JsonElement> ReadResponseAsync(DefaultHttpContext context)
+    {
+        context.Response.Body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(context.Response.Body);
+        return document.RootElement.Clone();
     }
 
     private static ServiceProvider TestServices() =>

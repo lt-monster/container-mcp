@@ -91,7 +91,7 @@
 - [x] **10.2** 在推荐远程访问前，为 HTTP transport 增加统一配置文件和 Bearer token 保护；token 过期暂不实现。（现在实现）
 - [x] **10.3** 为 HTTP JSON 请求体增加大小限制。（现在实现）
 - [ ] **10.4** 如果 HTTP transport 暴露到 localhost 以外，增加 rate limiting。（后续实现）
-- [ ] **10.5** 如果计划以托管服务运行，增加 health/readiness 元数据 endpoint。（后续实现）
+- [x] **10.5** 如果计划以托管服务运行，增加 health/readiness 元数据 endpoint。（现在实现）
 - [x] **10.6** 确保 stdio 模式永远不向 stdout 写诊断信息。（现在实现）
 - [x] **10.7** 复查 publish profile，移除源码中的用户级发布文件。（现在实现）
 

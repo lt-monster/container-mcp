@@ -52,9 +52,13 @@ app.MapGet("/", () => JsonNodeExtensions.JsonResult(new JsonObject
 {
     ["name"] = "container-mcp",
     ["transport"] = "http",
-    ["endpoint"] = "/mcp"
+    ["endpoint"] = "/mcp",
+    ["healthEndpoint"] = "/health",
+    ["readinessEndpoint"] = "/ready"
 }));
 
+app.MapGet("/health", McpHttpEndpoint.HandleHealth);
+app.MapGet("/ready", (ContainerMcpOptions options) => McpHttpEndpoint.HandleReady(options));
 app.MapPost("/mcp", (HttpContext httpContext, McpJsonRpcHandler handler, ContainerMcpOptions options) =>
     McpHttpEndpoint.HandlePostAsync(httpContext, handler, options));
 app.MapGet("/mcp", McpHttpEndpoint.HandleGet);
