@@ -43,4 +43,10 @@ public sealed class CliHelpTests
     {
         Assert.Equal($"container-mcp {ServerVersion.Current}", CliHelp.BuildVersion());
     }
+
+    [Fact]
+    public void CurrentServerVersion_MatchesReleaseVersion()
+    {
+        Assert.Equal("1.0.1", ServerVersion.Current);
+    }
 }

@@ -41,7 +41,7 @@ public sealed class McpJsonRpcHandlerTests
 
         Assert.NotNull(response);
         Assert.Equal("container-mcp", response["result"]!["serverInfo"]!["name"]!.GetValue<string>());
-        Assert.Equal("1.0.0", response["result"]!["serverInfo"]!["version"]!.GetValue<string>());
+        Assert.Equal(ServerVersion.Current, response["result"]!["serverInfo"]!["version"]!.GetValue<string>());
     }
 
     [Fact]
