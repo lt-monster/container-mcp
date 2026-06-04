@@ -141,6 +141,8 @@ When writing, revising, or reviewing GitHub Release notes, follow `docs/release-
 
 Release notes must be generated from the actual tag diff, grouped by concrete change type such as `Features ✨`, `Fixes 🐛`, `CI / Release 👷`, `Docs 📝`, and `Tests 🧪`. Do not include empty categories, do not list release assets unless explicitly requested, and do not invent changes from plans or todo items.
 
+When asked to publish a new version or create a release tag, update and verify the `--version` functionality as part of the same release work. The reported CLI version should match the tag/release version being published.
+
 ## Coding Conventions
 
 - Keep types `internal` unless they are intentionally part of a public API surface.
