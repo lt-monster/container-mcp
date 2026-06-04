@@ -216,7 +216,7 @@ container-mcp/
 - v1 拒绝 host bind mount。
 - 仅允许命名卷或匿名容器卷。
 - 仅支持 `target=local`。
-- v1 尚未实现远程 target、host bind mount、无限实时流式输出和 registry 认证。
+- v1 尚未实现远程 target、host bind mount、真正无限实时流式输出和 registry 认证。
 - 当 HTTP transport 绑定到非 loopback 地址时会输出警告；常规本地 MCP client 建议使用 loopback URL。
 - 镜像 tar 导入/导出使用显式本地文件路径，并限制读写大小。
 - stdio transport 中 stdout 只用于 JSON-RPC 响应，诊断日志应写入 stderr。
